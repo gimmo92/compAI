@@ -1,5 +1,42 @@
 <template>
-S  <section class="page">
+  <section class="page">
+    <div class="card">
+      <h2>Competitor Benchmark Box Plot</h2>
+      <p class="card-subtitle">
+        Range salariale azienda vs competitor diretti (Senior Dev).
+      </p>
+      <div class="box-plot">
+        <div class="plot-scale">
+          <span>45k</span>
+          <span>50k</span>
+          <span>55k</span>
+          <span>60k</span>
+        </div>
+        <div class="plot-track">
+          <div class="company-range">
+            <div class="range-label">La tua Azienda</div>
+            <div class="range-bar"></div>
+          </div>
+          <div class="competitor-point" style="left: 30%;">
+            <span class="dot"></span>
+            <span class="label">Competitor X</span>
+          </div>
+          <div class="competitor-point" style="left: 55%;">
+            <span class="dot"></span>
+            <span class="label">Competitor Y</span>
+          </div>
+          <div class="competitor-point" style="left: 70%;">
+            <span class="dot"></span>
+            <span class="label">Competitor Z</span>
+          </div>
+        </div>
+      </div>
+      <div class="impact-message">
+        ⚠️ Il tuo competitor diretto ha alzato il minimo per i Senior Dev a 55k,
+        tu sei ancora a 48k.
+      </div>
+    </div>
+
     <div class="card">
       <h2>Market Intelligence Feed</h2>
       <div class="feed">
@@ -42,6 +79,73 @@ const marketFeed = [
   margin: 0 0 6px;
   font-size: 1rem;
   color: var(--bs-dark);
+}
+.card-subtitle {
+  margin: 0 0 12px;
+  color: var(--bs-gray-700);
+  font-size: 0.9rem;
+}
+.box-plot {
+  display: grid;
+  gap: 8px;
+}
+.plot-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--bs-gray-700);
+}
+.plot-track {
+  position: relative;
+  height: 70px;
+  background: var(--bs-gray-100);
+  border-radius: 10px;
+  border: 1px solid var(--bs-gray-200);
+  padding: 16px 12px;
+}
+.company-range {
+  position: absolute;
+  left: 15%;
+  right: 35%;
+  top: 18px;
+}
+.range-label {
+  font-size: 0.75rem;
+  color: var(--bs-dark);
+  margin-bottom: 6px;
+}
+.range-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bs-primary);
+  box-shadow: 0 0 0 4px rgba(10, 108, 210, 0.15);
+}
+.competitor-point {
+  position: absolute;
+  top: 38px;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+.competitor-point .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #D62755;
+}
+.competitor-point .label {
+  font-size: 0.7rem;
+  color: var(--bs-gray-700);
+  white-space: nowrap;
+}
+.impact-message {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(214, 39, 85, 0.08);
+  color: #8b1d3a;
+  font-weight: 600;
 }
 .feed {
   display: grid;
