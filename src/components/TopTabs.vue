@@ -13,8 +13,7 @@
 </template>
 
 <script setup>
-import { RouterLink, useRoute } from 'vue-router'
-const route = useRoute()
+import { RouterLink } from 'vue-router'
 const tabs = [
   { to: '/overview', label: 'Overview' },
   { to: '/review-cycle', label: 'Cicli di Review' },
