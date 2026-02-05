@@ -18,11 +18,25 @@ const normalizeItems = (parsed) => {
 }
 
 export const requestPerplexitySalary = async ({ role, location }) => {
-  const response = await fetch('/api/perplexity', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role, location })
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+  let response
+  try {
+    response = await fetch('/api/perplexity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, location }),
+      signal: controller.signal
+    })
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('Timeout Perplexity (30s)')
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
