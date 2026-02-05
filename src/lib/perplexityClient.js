@@ -5,8 +5,42 @@ const extractJson = (text) => {
 
 const toNumber = (value) => {
   if (value === null || value === undefined) return NaN
-  const cleaned = String(value).replace(/[^\d.,-]/g, '').replace(',', '.')
-  return Number(cleaned)
+  const text = String(value).trim()
+  if (!text) return NaN
+  const multiplier = /[kK]\b/.test(text) ? 1000 : /[mM]\b/.test(text) ? 1000000 : 1
+  const cleaned = text.replace(/[^\d.,-]/g, '')
+  if (!cleaned) return NaN
+  const hasDot = cleaned.includes('.')
+  const hasComma = cleaned.includes(',')
+  let normalized = cleaned
+  if (hasDot && hasComma) {
+    normalized = cleaned.replace(/\./g, '').replace(',', '.')
+  } else if (hasComma) {
+    const parts = cleaned.split(',')
+    if (parts[1]?.length === 3) {
+      normalized = parts.join('')
+    } else {
+      normalized = parts.join('.')
+    }
+  } else if (hasDot) {
+    const parts = cleaned.split('.')
+    if (parts[1]?.length === 3) {
+      normalized = parts.join('')
+    }
+  }
+  const number = Number(normalized)
+  return Number.isFinite(number) ? number * multiplier : NaN
+}
+
+const parseRange = (value) => {
+  if (!value) return null
+  const matches = String(value).match(/(\d[\d.,]*\s*[kKmM]?)/g)
+  if (!matches || !matches.length) return null
+  const numbers = matches.map((entry) => toNumber(entry)).filter(Number.isFinite)
+  if (!numbers.length) return null
+  const min = Math.min(...numbers)
+  const max = Math.max(...numbers)
+  return { min, max }
 }
 
 const normalizeItems = (parsed) => {
@@ -60,18 +94,58 @@ export const parseSalaryBenchmark = (text) => {
   const parsed = JSON.parse(jsonText)
   const items = normalizeItems(parsed)
   const salaries = items
-    .map((item) => ({
-      min: toNumber(item.ral_min ?? item.min ?? item.salary_min),
-      max: toNumber(item.ral_max ?? item.max ?? item.salary_max),
-      link: item.link_fonte ?? item.link ?? item.url
-    }))
+    .map((item) => {
+      const directMin = toNumber(item?.ral_min ?? item?.min ?? item?.salary_min)
+      const directMax = toNumber(item?.ral_max ?? item?.max ?? item?.salary_max)
+      let min = directMin
+      let max = directMax
+      if (!Number.isFinite(min) || !Number.isFinite(max)) {
+        const rangeValue =
+          item?.range ??
+          item?.ral ??
+          item?.salary ??
+          item?.retribuzione ??
+          item?.compenso ??
+          item?.stipendio
+        const parsedRange = parseRange(rangeValue)
+        if (parsedRange) {
+          min = parsedRange.min
+          max = parsedRange.max
+        }
+      }
+      if (Number.isFinite(min) && Number.isFinite(max) && min > max) {
+        ;[min, max] = [max, min]
+      }
+      return {
+        min,
+        max,
+        link: item?.link_fonte ?? item?.link ?? item?.url
+      }
+    })
     .filter((item) => Number.isFinite(item.min) && Number.isFinite(item.max))
 
   if (!salaries.length) {
-    const min = toNumber(parsed.ral_min ?? parsed.min)
-    const max = toNumber(parsed.ral_max ?? parsed.max)
+    let min = toNumber(parsed.ral_min ?? parsed.min)
+    let max = toNumber(parsed.ral_max ?? parsed.max)
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      const rangeFromParsed = parseRange(parsed.range ?? parsed.ral ?? parsed.salary ?? parsed.stipendio)
+      if (rangeFromParsed) {
+        min = rangeFromParsed.min
+        max = rangeFromParsed.max
+      }
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      const rangeFromText = parseRange(jsonText) || parseRange(text)
+      if (rangeFromText) {
+        min = rangeFromText.min
+        max = rangeFromText.max
+      }
+    }
     if (!Number.isFinite(min) || !Number.isFinite(max)) {
       throw new Error('Invalid salary values')
+    }
+    if (min > max) {
+      ;[min, max] = [max, min]
     }
     return {
       min,
