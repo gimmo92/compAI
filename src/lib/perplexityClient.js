@@ -40,7 +40,11 @@ export const requestPerplexitySalary = async ({ role, location }) => {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error?.error || 'Perplexity request failed')
+    if (response.status === 404) {
+      throw new Error('Endpoint /api/perplexity non disponibile (usa vercel dev o deploy)')
+    }
+    const message = error?.error || `Perplexity request failed (${response.status})`
+    throw new Error(message)
   }
 
   const data = await response.json()

@@ -193,7 +193,8 @@ const confirmRole = async () => {
     })
     result.value = parseSalaryBenchmark(response)
   } catch (err) {
-    error.value = 'Impossibile ottenere dati live da Perplexity. Uso una stima locale.'
+    const message = err?.message || 'Errore sconosciuto'
+    error.value = `Impossibile ottenere dati live da Perplexity: ${message}. Uso una stima locale.`
     result.value = buildFallback()
   } finally {
     loading.value = false
