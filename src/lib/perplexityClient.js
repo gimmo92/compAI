@@ -43,6 +43,21 @@ const parseRange = (value) => {
   return { min, max }
 }
 
+const normalizeRange = (min, max) => {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null
+  let normalizedMin = min
+  let normalizedMax = max
+  if (normalizedMin > normalizedMax) {
+    ;[normalizedMin, normalizedMax] = [normalizedMax, normalizedMin]
+  }
+  if (normalizedMax < 1000) {
+    normalizedMin *= 1000
+    normalizedMax *= 1000
+  }
+  if (normalizedMax < 15000) return null
+  return { min: normalizedMin, max: normalizedMax }
+}
+
 const normalizeItems = (parsed) => {
   if (Array.isArray(parsed)) return parsed
   if (Array.isArray(parsed?.items)) return parsed.items
@@ -113,12 +128,10 @@ export const parseSalaryBenchmark = (text) => {
           max = parsedRange.max
         }
       }
-      if (Number.isFinite(min) && Number.isFinite(max) && min > max) {
-        ;[min, max] = [max, min]
-      }
+      const normalized = normalizeRange(min, max)
       return {
-        min,
-        max,
+        min: normalized?.min,
+        max: normalized?.max,
         link: item?.link_fonte ?? item?.link ?? item?.url
       }
     })
@@ -141,16 +154,14 @@ export const parseSalaryBenchmark = (text) => {
         max = rangeFromText.max
       }
     }
-    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    const normalized = normalizeRange(min, max)
+    if (!normalized) {
       throw new Error('Invalid salary values')
     }
-    if (min > max) {
-      ;[min, max] = [max, min]
-    }
     return {
-      min,
-      med: Math.round((min + max) / 2),
-      max,
+      min: normalized.min,
+      med: Math.round((normalized.min + normalized.max) / 2),
+      max: normalized.max,
       sources: []
     }
   }
