@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/perplexity.js": {
+      "maxDuration": 30
+    }
+  }
+}
