@@ -79,7 +79,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { generateGeminiInsight } from '../lib/geminiClient'
+import { parseSalaryBenchmark, requestPerplexitySalary } from '../lib/perplexityClient'
 import VueApexCharts from 'vue3-apexcharts'
 
 const roleName = ref('')
@@ -167,11 +167,6 @@ const formatCurrency = (value) => {
   }).format(value)
 }
 
-const extractJson = (text) => {
-  const match = text.match(/\{[\s\S]*\}/)
-  return match ? match[0] : null
-}
-
 const buildFallback = () => {
   const base = 30000 + Math.max(0, Number(seniority.value) || 0) * 1800
   return {
@@ -192,27 +187,13 @@ const confirmRole = async () => {
   }
   loading.value = true
   try {
-    const prompt = `Cerca su internet dati salariali per ${name} con ${seniority.value} anni di esperienza a ${city.value}.
-Rispondi SOLO in JSON nel formato: {"min": number, "med": number, "max": number, "queries": ["query1","query2"]}.
-Genera query, non link.`
-    const response = await generateGeminiInsight(prompt)
-    const jsonText = extractJson(response)
-    if (!jsonText) throw new Error('Invalid JSON')
-    const parsed = JSON.parse(jsonText)
-    const min = Number(parsed.min)
-    const med = Number(parsed.med)
-    const max = Number(parsed.max)
-    if (!Number.isFinite(min) || !Number.isFinite(med) || !Number.isFinite(max)) {
-      throw new Error('Invalid values')
-    }
-    const queries = Array.isArray(parsed.queries) ? parsed.queries : []
-    const sources = queries.map((item) => {
-      const encoded = encodeURIComponent(String(item))
-      return `https://www.google.com/search?q=${encoded}`
+    const response = await requestPerplexitySalary({
+      role: `${name} (${seniority.value} anni)`,
+      location: city.value
     })
-    result.value = { min, med, max, sources }
+    result.value = parseSalaryBenchmark(response)
   } catch (err) {
-    error.value = 'Impossibile ottenere dati live. Uso una stima locale.'
+    error.value = 'Impossibile ottenere dati live da Perplexity. Uso una stima locale.'
     result.value = buildFallback()
   } finally {
     loading.value = false

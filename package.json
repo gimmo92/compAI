@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
     "apexcharts": "^4.7.0",
+    "axios": "^1.13.4",
     "chart.js": "^4.4.3",
     "vue": "^3.4.0",
     "vue-router": "^4.6.4",

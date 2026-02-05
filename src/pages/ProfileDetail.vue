@@ -69,7 +69,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { employees, formatCurrency } from '../data/employees'
-import { generateGeminiInsight } from '../lib/geminiClient'
+import { parseSalaryBenchmark, requestPerplexitySalary } from '../lib/perplexityClient'
 import VueApexCharts from 'vue3-apexcharts'
 
 const route = useRoute()
@@ -273,45 +273,25 @@ const sourceDetails = computed(() => {
   })
 })
 
-const extractJson = (text) => {
-  const match = text.match(/\{[\s\S]*\}/)
-  return match ? match[0] : null
-}
-
 const updateBenchmark = async () => {
   if (!employee.value) return
   benchmarkLoading.value = true
   benchmarkError.value = ''
   try {
-    const prompt = `Cerca su internet dati salariali per ${employee.value.ruolo} a Milano.
-Rispondi SOLO in JSON nel formato: {"min": number, "med": number, "max": number, "queries": ["query1","query2"]}.
-Genera query, non link.`
-
-    const response = await generateGeminiInsight(prompt)
-    const jsonText = extractJson(response)
-    if (!jsonText) throw new Error('Invalid JSON')
-    const parsed = JSON.parse(jsonText)
-    const min = Number(parsed.min)
-    const med = Number(parsed.med)
-    const max = Number(parsed.max)
-
-    if (!Number.isFinite(min) || !Number.isFinite(med) || !Number.isFinite(max)) {
-      throw new Error('Invalid benchmark values')
-    }
-
-    const queries = Array.isArray(parsed.queries) ? parsed.queries : parsed.sources
-
+    const response = await requestPerplexitySalary({
+      role: employee.value.ruolo,
+      location: employee.value.city || 'Milano'
+    })
+    const benchmark = parseSalaryBenchmark(response)
     benchmarkData.value = {
       id: employee.value.id,
-      min,
-      med,
-      max,
-      sources: Array.isArray(queries)
-        ? queries.map((item) => String(item).trim()).filter(Boolean)
-        : []
+      min: benchmark.min,
+      med: benchmark.med,
+      max: benchmark.max,
+      sources: benchmark.sources
     }
   } catch (error) {
-    benchmarkError.value = 'Impossibile aggiornare il benchmark. Riprova.'
+    benchmarkError.value = 'Impossibile aggiornare il benchmark da Perplexity. Riprova.'
     benchmarkData.value = {
       id: employee.value.id,
       min: employee.value.benchmark.min,

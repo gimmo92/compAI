@@ -37,10 +37,10 @@ npm run preview
 - `src/styles/theme.css`: variabili e base styling ispirati al tuo `style.css`
 - `src/styles/external-origin.css`: utilità leggere coerenti con lo stile originale
 
-### Serverless Gemini (Vercel)
-Questa app usa una function serverless in `api/gemini.js` per chiamare Gemini.
+### Serverless Perplexity (Vercel)
+Questa app usa una function serverless in `api/perplexity.js` per chiamare Perplexity (modello `sonar-deep-research`).
 
-Imposta la variabile d'ambiente `GEMINI_API_KEY` nel provider (es. Vercel).
+Imposta la variabile d'ambiente `PERPLEXITY_API_KEY` nel provider (es. Vercel).
 
 Esempio chiamata dal frontend:
-- `src/lib/geminiClient.js` -> `generateGeminiInsight()`
+- `src/lib/perplexityClient.js` -> `requestPerplexitySalary()`
