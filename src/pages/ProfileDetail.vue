@@ -2,7 +2,7 @@
   <section class="page">
     <div class="header">
       <div>
-        <h1 class="page-title">Profilo retributivo</h1>
+        <h1 class="page-title">{{ employee?.nome || 'Profilo retributivo' }}</h1>
         <p class="page-desc">
           {{ employee?.nome }} · {{ employee?.ruolo }} · {{ employee?.dipartimento }}
         </p>
@@ -32,27 +32,32 @@
 
       <div v-if="benchmarkError" class="insight-error">{{ benchmarkError }}</div>
 
-      <div class="boxplot-card">
-        <VueApexCharts
-          v-if="employee && activeBenchmark"
-          type="boxPlot"
-          height="260"
-          :options="chartOptions"
-          :series="chartSeries"
-        />
-      </div>
+      <div class="profile-grid">
+        <div class="boxplot-card">
+          <VueApexCharts
+            v-if="employee && activeBenchmark"
+            type="boxPlot"
+            height="260"
+            :options="chartOptions"
+            :series="chartSeries"
+          />
+        </div>
 
-      <div class="sources">
-        <div class="sources-title">Fonti benchmark</div>
-        <a
-          v-for="link in activeSources"
-          :key="link"
-          :href="link"
-          target="_blank"
-          rel="noreferrer"
-        >
-          {{ link }}
-        </a>
+        <div class="sources">
+          <div class="sources-title">Fonti benchmark</div>
+          <div v-for="source in sourceDetails" :key="source.url" class="source-row">
+            <div class="source-icon">{{ source.icon }}</div>
+            <div class="source-body">
+              <a :href="source.url" target="_blank" rel="noreferrer">{{ source.label }}</a>
+              <div class="source-range">
+                Range: {{ formatCurrency(source.min) }} - {{ formatCurrency(source.max) }}
+              </div>
+            </div>
+            <div :class="['trend', source.trend]">
+              <span class="trend-arrow">{{ source.trend === 'up' ? '^' : 'v' }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -132,12 +137,34 @@ const chartOptions = computed(() => ({
     toolbar: { show: false },
     foreColor: '#67748e'
   },
+  annotations: {
+    yaxis: employee.value
+      ? [
+          {
+            y: employee.value.ral_attuale,
+            borderColor: '#D62755',
+            strokeDashArray: 4,
+            label: {
+              text: `RAL ${formatCurrency(employee.value.ral_attuale)}`,
+              style: {
+                color: '#fff',
+                background: '#D62755'
+              }
+            }
+          }
+        ]
+      : []
+  },
   plotOptions: {
+    bar: {
+      columnWidth: '10%'
+    },
     boxPlot: {
       colors: {
         upper: '#0A6CD2',
         lower: '#0A6CD2'
-      }
+      },
+      columnWidth: '10%'
     }
   },
   stroke: {
@@ -166,6 +193,41 @@ const chartOptions = computed(() => ({
 
 const activeSources = computed(() => activeBenchmark.value?.sources || [])
 
+const sourceDetails = computed(() => {
+  const sources = activeSources.value
+  if (!employee.value || !activeBenchmark.value) return []
+
+  const med = activeBenchmark.value.med
+  return sources.map((url, index) => {
+    const host = url.replace(/^https?:\/\//, '').split('/')[0]
+    const labelMap = {
+      'www.linkedin.com': 'LinkedIn',
+      'linkedin.com': 'LinkedIn',
+      'www.indeed.com': 'Indeed',
+      'indeed.com': 'Indeed',
+      'www.glassdoor.com': 'Glassdoor',
+      'glassdoor.com': 'Glassdoor',
+      'www.payscale.com': 'Payscale',
+      'payscale.com': 'Payscale'
+    }
+    const iconMap = {
+      LinkedIn: 'LI',
+      Indeed: 'IN',
+      Glassdoor: 'GD',
+      Payscale: 'PS'
+    }
+    const label = labelMap[host] || host
+    const icon = iconMap[label] || 'FX'
+
+    const offset = (index + 1) * 1200
+    const min = Math.max(0, med - 4500 + offset)
+    const max = med + 4500 + offset
+    const trend = min >= med ? 'up' : 'down'
+
+    return { url, label, icon, min, max, trend }
+  })
+})
+
 const extractJson = (text) => {
   const match = text.match(/\{[\s\S]*\}/)
   return match ? match[0] : null
@@ -183,13 +245,20 @@ Rispondi SOLO in JSON nel formato: {"min": number, "med": number, "max": number,
     const jsonText = extractJson(response)
     if (!jsonText) throw new Error('Invalid JSON')
     const parsed = JSON.parse(jsonText)
+    const min = Number(parsed.min)
+    const med = Number(parsed.med)
+    const max = Number(parsed.max)
+
+    if (!Number.isFinite(min) || !Number.isFinite(med) || !Number.isFinite(max)) {
+      throw new Error('Invalid benchmark values')
+    }
 
     benchmarkData.value = {
       id: employee.value.id,
-      min: parsed.min,
-      med: parsed.med,
-      max: parsed.max,
-      sources: parsed.sources || []
+      min,
+      med,
+      max,
+      sources: Array.isArray(parsed.sources) ? parsed.sources : []
     }
   } catch (error) {
     benchmarkError.value = 'Impossibile aggiornare il benchmark. Riprova.'
@@ -258,6 +327,15 @@ watch(employee, () => {
   font-size: 1rem;
   color: var(--bs-dark);
 }
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.profile-grid > * {
+  min-width: 0;
+}
 .insight-error {
   color: #D62755;
   font-weight: 600;
@@ -276,14 +354,57 @@ watch(employee, () => {
   font-weight: 600;
   color: var(--bs-dark);
 }
-.sources a {
+.source-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  background: var(--bs-gray-100);
+  border: 1px solid var(--bs-gray-200);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.source-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #0a6cd2;
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+.source-body a {
   color: var(--bs-primary);
   text-decoration: none;
   font-size: 0.9rem;
   word-break: break-all;
 }
-.sources a:hover {
+.source-body a:hover {
   text-decoration: underline;
+}
+.source-range {
+  font-size: 0.8rem;
+  color: var(--bs-gray-700);
+}
+.trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.trend.up {
+  color: #16a34a;
+}
+.trend.down {
+  color: #D62755;
+}
+.trend-arrow {
+  font-size: 1rem;
+  line-height: 1;
 }
 .empty-state {
   background: var(--bs-gray-100);
