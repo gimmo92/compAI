@@ -198,7 +198,7 @@ const normalizeUrl = (value) => {
   if (!value) return ''
   const text = String(value).trim()
   if (/^https?:\/\//i.test(text)) return text
-  return `https://www.google.com/search?q=${encodeURIComponent(text)}`
+  return text
 }
 
 const getHost = (url) => {
@@ -215,36 +215,65 @@ const chartKey = computed(() => {
   return `${employee.value.id}-${min}-${med}-${max}`
 })
 
+const buildSearchUrl = (label, query) => {
+  const encoded = encodeURIComponent(query)
+  if (label === 'LinkedIn') {
+    return `https://www.linkedin.com/jobs/search/?keywords=${encoded}`
+  }
+  if (label === 'Indeed') {
+    return `https://www.indeed.com/jobs?q=${encoded}`
+  }
+  if (label === 'Glassdoor') {
+    return `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${encoded}`
+  }
+  if (label === 'Payscale') {
+    return `https://www.payscale.com/research/IT/Job=${encoded}/Salary`
+  }
+  return `https://www.google.com/search?q=${encoded}`
+}
+
 const sourceDetails = computed(() => {
   const sources = activeSources.value
   if (!employee.value || !activeBenchmark.value) return []
 
   const med = activeBenchmark.value.med
-  return sources.map((url, index) => {
-    const normalized = normalizeUrl(url)
-    const host = getHost(normalized)
-    const labelMap = {
-      linkedin: 'LinkedIn',
-      indeed: 'Indeed',
-      glassdoor: 'Glassdoor',
-      payscale: 'Payscale'
-    }
-    const iconMap = {
-      LinkedIn: 'LI',
-      Indeed: 'IN',
-      Glassdoor: 'GD',
-      Payscale: 'PS'
-    }
-    const matchedKey = Object.keys(labelMap).find((key) => host.includes(key))
-    const label = matchedKey ? labelMap[matchedKey] : host || 'Query'
-    const icon = iconMap[label] || 'FX'
+  const labelMap = {
+    linkedin: 'LinkedIn',
+    indeed: 'Indeed',
+    glassdoor: 'Glassdoor',
+    payscale: 'Payscale'
+  }
+  const iconMap = {
+    LinkedIn: 'LI',
+    Indeed: 'IN',
+    Glassdoor: 'GD',
+    Payscale: 'PS'
+  }
 
+  const expanded = sources.flatMap((item) => {
+    const normalized = normalizeUrl(item)
+    if (/^https?:\/\//i.test(normalized)) {
+      const host = getHost(normalized)
+      const matchedKey = Object.keys(labelMap).find((key) => host.includes(key))
+      const label = matchedKey ? labelMap[matchedKey] : host || 'Fonte'
+      const icon = iconMap[label] || 'FX'
+      return [{ url: normalized, label, icon }]
+    }
+
+    const query = normalized
+    return ['LinkedIn', 'Indeed', 'Glassdoor'].map((label) => ({
+      url: buildSearchUrl(label, query),
+      label,
+      icon: iconMap[label] || 'FX'
+    }))
+  })
+
+  return expanded.map((entry, index) => {
     const offset = (index + 1) * 1200
     const min = Math.max(0, med - 4500 + offset)
     const max = med + 4500 + offset
     const trend = min >= med ? 'up' : 'down'
-
-    return { url: normalized, label, icon, min, max, trend }
+    return { ...entry, min, max, trend }
   })
 })
 
