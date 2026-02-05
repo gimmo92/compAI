@@ -1,6 +1,16 @@
 <template>
   <section class="page">
     <div class="card">
+      <h2>Aggregated Salary Benchmark</h2>
+      <p class="card-subtitle">
+        Confronto tra salario medio aziendale e media di mercato.
+      </p>
+      <div class="chart-wrap">
+        <canvas ref="salaryChartRef" height="140"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Competitor Benchmark Box Plot</h2>
       <p class="card-subtitle">
         Range salariale azienda vs competitor diretti (Senior Dev).
@@ -53,6 +63,71 @@
 </template>
 
 <script setup>
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import Chart from 'chart.js/auto'
+import { employees } from '../data/employees'
+
+const salaryChartRef = ref(null)
+let salaryChartInstance = null
+
+const companyAvg =
+  employees.reduce((sum, employee) => sum + employee.ral_attuale, 0) / employees.length
+const marketAvg =
+  employees.reduce((sum, employee) => sum + employee.benchmark.med, 0) / employees.length
+
+const formatShort = (value) => `${Math.round(value / 1000)}k`
+
+onMounted(() => {
+  if (!salaryChartRef.value) return
+  salaryChartInstance = new Chart(salaryChartRef.value, {
+    type: 'bar',
+    data: {
+      labels: ['La tua Azienda', 'Media di mercato'],
+      datasets: [
+        {
+          label: 'Salario medio',
+          data: [companyAvg, marketAvg],
+          backgroundColor: ['#0A6CD2', '#F56565'],
+          borderRadius: 8,
+          barThickness: 40
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `${formatShort(context.parsed.y)} EUR`
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: (value) => formatShort(value)
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.06)'
+          }
+        },
+        x: {
+          grid: { display: false }
+        }
+      }
+    }
+  })
+})
+
+onBeforeUnmount(() => {
+  if (salaryChartInstance) {
+    salaryChartInstance.destroy()
+    salaryChartInstance = null
+  }
+})
+
 const marketFeed = [
   {
     id: 'feed-1',
@@ -84,6 +159,10 @@ const marketFeed = [
   margin: 0 0 12px;
   color: var(--bs-gray-700);
   font-size: 0.9rem;
+}
+.chart-wrap {
+  height: 220px;
+  padding: 10px 0;
 }
 .box-plot {
   display: grid;
