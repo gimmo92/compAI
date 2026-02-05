@@ -194,10 +194,11 @@ const chartOptions = computed(() => ({
 
 const activeSources = computed(() => activeBenchmark.value?.sources || [])
 
-const normalizeUrl = (url) => {
-  if (!url) return ''
-  if (/^https?:\/\//i.test(url)) return url
-  return `https://${url}`
+const normalizeUrl = (value) => {
+  if (!value) return ''
+  const text = String(value).trim()
+  if (/^https?:\/\//i.test(text)) return text
+  return `https://www.google.com/search?q=${encodeURIComponent(text)}`
 }
 
 const getHost = (url) => {
@@ -235,7 +236,7 @@ const sourceDetails = computed(() => {
       Payscale: 'PS'
     }
     const matchedKey = Object.keys(labelMap).find((key) => host.includes(key))
-    const label = matchedKey ? labelMap[matchedKey] : host || 'Fonte'
+    const label = matchedKey ? labelMap[matchedKey] : host || 'Query'
     const icon = iconMap[label] || 'FX'
 
     const offset = (index + 1) * 1200
@@ -258,7 +259,8 @@ const updateBenchmark = async () => {
   benchmarkError.value = ''
   try {
     const prompt = `Cerca su internet dati salariali per ${employee.value.ruolo} a Milano.
-Rispondi SOLO in JSON nel formato: {"min": number, "med": number, "max": number, "sources": ["url1","url2"]}.`
+Rispondi SOLO in JSON nel formato: {"min": number, "med": number, "max": number, "queries": ["query1","query2"]}.
+Genera query, non link.`
 
     const response = await generateGeminiInsight(prompt)
     const jsonText = extractJson(response)
@@ -272,13 +274,15 @@ Rispondi SOLO in JSON nel formato: {"min": number, "med": number, "max": number,
       throw new Error('Invalid benchmark values')
     }
 
+    const queries = Array.isArray(parsed.queries) ? parsed.queries : parsed.sources
+
     benchmarkData.value = {
       id: employee.value.id,
       min,
       med,
       max,
-      sources: Array.isArray(parsed.sources)
-        ? parsed.sources.map((url) => normalizeUrl(String(url).trim())).filter(Boolean)
+      sources: Array.isArray(queries)
+        ? queries.map((item) => String(item).trim()).filter(Boolean)
         : []
     }
   } catch (error) {
