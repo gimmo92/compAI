@@ -13,21 +13,29 @@
     <div class="competitor-section">
       <div class="competitor-header">
         <h3>Ruoli a rischio sorpasso</h3>
-        <p class="meta">Evidenzia i competitor con offerte superiori per ruolo.</p>
+        <p class="meta">Suddivisi per azienda con esempi di annunci.</p>
       </div>
-      <div class="competitor-list">
-        <div v-for="job in competitorJobs" :key="job.id" class="competitor-row">
-          <div class="competitor-main">
-            <div class="competitor-title">{{ job.role }}</div>
-            <div class="competitor-meta">{{ job.company }} · {{ job.city }}</div>
+      <div class="company-grid">
+        <div v-for="company in competitorCompanies" :key="company.name" class="company-card">
+          <div class="company-header">
+            <div class="company-name">{{ company.name }}</div>
+            <div class="company-meta">{{ company.city }} · {{ company.industry }}</div>
           </div>
-          <div class="competitor-pay">
-            {{ formatCurrency(job.salary) }}
-            <span class="competitor-up">↑</span>
+          <div class="competitor-list">
+            <div v-for="job in company.jobs" :key="job.id" class="competitor-row">
+              <div class="competitor-main">
+                <div class="competitor-title">{{ job.role }}</div>
+                <div class="competitor-meta">{{ job.city }}</div>
+              </div>
+              <div class="competitor-pay">
+                {{ formatCurrency(job.salary) }}
+                <span class="competitor-up">↑</span>
+              </div>
+              <a :href="job.link" target="_blank" rel="noreferrer" class="competitor-link">
+                Apri annuncio
+              </a>
+            </div>
           </div>
-          <a :href="job.link" target="_blank" rel="noreferrer" class="competitor-link">
-            Apri annuncio
-          </a>
         </div>
       </div>
     </div>
@@ -38,26 +46,33 @@
 import { computed } from 'vue'
 import { employees, formatCurrency } from '../data/employees'
 
-const competitorJobs = computed(() => {
+const competitorCompanies = computed(() => {
   const roles = Array.from(new Set(employees.map((item) => item.ruolo)))
-  return roles.slice(0, 8).flatMap((role, roleIndex) => {
-    const base = Math.max(
-      ...employees
-        .filter((item) => item.ruolo === role)
-        .map((item) => item.benchmark?.max || item.ral_attuale || 0)
-    )
-    return [0, 1].map((offset) => {
-      const salary = base + 3000 + roleIndex * 800 + offset * 1200
-      const query = encodeURIComponent(`${role} Milano salary`)
+  const companies = [
+    { name: 'Talentify', industry: 'HR Tech', city: 'Milano' },
+    { name: 'BlueWave', industry: 'Fintech', city: 'Milano' },
+    { name: 'HR Prime', industry: 'Consulenza', city: 'Roma' },
+    { name: 'NextPeople', industry: 'SaaS', city: 'Torino' }
+  ]
+
+  return companies.map((company, companyIndex) => {
+    const jobs = roles.slice(0, 3).map((role, roleIndex) => {
+      const base = Math.max(
+        ...employees
+          .filter((item) => item.ruolo === role)
+          .map((item) => item.benchmark?.max || item.ral_attuale || 0)
+      )
+      const salary = base + 2500 + companyIndex * 1200 + roleIndex * 900
+      const query = encodeURIComponent(`${role} ${company.city} salary`)
       return {
-        id: `${role}-${offset}`,
+        id: `${company.name}-${roleIndex}`,
         role,
-        company: ['Talentify', 'BlueWave', 'HR Prime', 'NextPeople'][offset % 4],
-        city: 'Milano',
+        city: company.city,
         salary,
         link: `https://www.linkedin.com/jobs/search/?keywords=${query}`
       }
     })
+    return { ...company, jobs }
   })
 })
 </script>
@@ -100,6 +115,31 @@ const competitorJobs = computed(() => {
   border: 1px solid var(--bs-gray-200);
   border-radius: 12px;
   padding: 16px;
+}
+.company-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.company-card {
+  border: 1px solid var(--bs-gray-200);
+  border-radius: 12px;
+  background: var(--bs-gray-100);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+.company-header {
+  display: grid;
+  gap: 4px;
+}
+.company-name {
+  font-weight: 700;
+  color: var(--bs-dark);
+}
+.company-meta {
+  font-size: 0.85rem;
+  color: var(--bs-gray-700);
 }
 .competitor-header h3 {
   margin: 0 0 4px;
