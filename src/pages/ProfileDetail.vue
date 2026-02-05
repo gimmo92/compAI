@@ -38,6 +38,7 @@
             v-if="employee && activeBenchmark"
             type="boxPlot"
             height="260"
+            :key="chartKey"
             :options="chartOptions"
             :series="chartSeries"
           />
@@ -193,22 +194,39 @@ const chartOptions = computed(() => ({
 
 const activeSources = computed(() => activeBenchmark.value?.sources || [])
 
+const normalizeUrl = (url) => {
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) return url
+  return `https://${url}`
+}
+
+const getHost = (url) => {
+  try {
+    return new URL(normalizeUrl(url)).hostname.toLowerCase()
+  } catch {
+    return url.replace(/^https?:\/\//i, '').split('/')[0].toLowerCase()
+  }
+}
+
+const chartKey = computed(() => {
+  if (!employee.value || !activeBenchmark.value) return 'empty'
+  const { min, med, max } = activeBenchmark.value
+  return `${employee.value.id}-${min}-${med}-${max}`
+})
+
 const sourceDetails = computed(() => {
   const sources = activeSources.value
   if (!employee.value || !activeBenchmark.value) return []
 
   const med = activeBenchmark.value.med
   return sources.map((url, index) => {
-    const host = url.replace(/^https?:\/\//, '').split('/')[0]
+    const normalized = normalizeUrl(url)
+    const host = getHost(normalized)
     const labelMap = {
-      'www.linkedin.com': 'LinkedIn',
-      'linkedin.com': 'LinkedIn',
-      'www.indeed.com': 'Indeed',
-      'indeed.com': 'Indeed',
-      'www.glassdoor.com': 'Glassdoor',
-      'glassdoor.com': 'Glassdoor',
-      'www.payscale.com': 'Payscale',
-      'payscale.com': 'Payscale'
+      linkedin: 'LinkedIn',
+      indeed: 'Indeed',
+      glassdoor: 'Glassdoor',
+      payscale: 'Payscale'
     }
     const iconMap = {
       LinkedIn: 'LI',
@@ -216,7 +234,8 @@ const sourceDetails = computed(() => {
       Glassdoor: 'GD',
       Payscale: 'PS'
     }
-    const label = labelMap[host] || host
+    const matchedKey = Object.keys(labelMap).find((key) => host.includes(key))
+    const label = matchedKey ? labelMap[matchedKey] : host || 'Fonte'
     const icon = iconMap[label] || 'FX'
 
     const offset = (index + 1) * 1200
@@ -224,7 +243,7 @@ const sourceDetails = computed(() => {
     const max = med + 4500 + offset
     const trend = min >= med ? 'up' : 'down'
 
-    return { url, label, icon, min, max, trend }
+    return { url: normalized, label, icon, min, max, trend }
   })
 })
 
@@ -258,7 +277,9 @@ Rispondi SOLO in JSON nel formato: {"min": number, "med": number, "max": number,
       min,
       med,
       max,
-      sources: Array.isArray(parsed.sources) ? parsed.sources : []
+      sources: Array.isArray(parsed.sources)
+        ? parsed.sources.map((url) => normalizeUrl(String(url).trim())).filter(Boolean)
+        : []
     }
   } catch (error) {
     benchmarkError.value = 'Impossibile aggiornare il benchmark. Riprova.'
