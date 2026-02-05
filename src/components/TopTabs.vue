@@ -14,9 +14,9 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
+
 const tabs = [
   { to: '/overview', label: 'Overview' },
-  { to: '/review-cycle', label: 'Cicli di Review' },
   { to: '/ai-suggestions', label: 'Suggerimenti AI' },
   { to: '/budget', label: 'Budget' },
   { to: '/audit', label: 'Audit' }

@@ -8,6 +8,20 @@
       <span class="chip">Priority Raises</span>
     </div>
 
+    <div class="insight-card">
+      <div>
+        <h2>GenAI Insight</h2>
+        <p class="meta">Sintesi automatica sulle priorità di incremento.</p>
+      </div>
+      <div class="insight-actions">
+        <button class="primary-btn" type="button" :disabled="insightLoading" @click="generateInsight">
+          {{ insightLoading ? 'Generazione...' : 'Genera insight' }}
+        </button>
+      </div>
+      <div v-if="insightError" class="insight-error">{{ insightError }}</div>
+      <div v-else class="insight-text">{{ insightText }}</div>
+    </div>
+
     <div class="table-card">
       <table class="table">
         <thead>
@@ -73,9 +87,13 @@ import {
   getPriorityScore
 } from '../data/employees'
 import UserDetailSheet from '../components/UserDetailSheet.vue'
+import { generateGeminiInsight } from '../lib/geminiClient'
 
 const sheetOpen = ref(false)
 const selectedEmployee = ref(null)
+const insightText = ref('Clicca su "Genera insight" per ottenere una sintesi AI.')
+const insightLoading = ref(false)
+const insightError = ref('')
 
 const priorityRaises = computed(() => {
   return employees
@@ -110,6 +128,29 @@ const createOffer = (employee) => {
   selectedEmployee.value = employee
   sheetOpen.value = true
 }
+
+const generateInsight = async () => {
+  insightLoading.value = true
+  insightError.value = ''
+  try {
+    const top = priorityRaises.value.slice(0, 3).map((e) => ({
+      nome: e.nome,
+      ruolo: e.ruolo,
+      gap: e.gap,
+      performance: e.performance_score
+    }))
+
+    const prompt = `Sei un HR strategist. Dai una sintesi in 4-5 frasi
+    sulle priorita di salary review per questi profili: ${JSON.stringify(top)}.
+    Evidenzia urgenze e azioni consigliate.`
+
+    insightText.value = await generateGeminiInsight(prompt)
+  } catch (error) {
+    insightError.value = 'Errore nella generazione dell\'insight AI.'
+  } finally {
+    insightLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -127,6 +168,33 @@ const createOffer = (employee) => {
   color: var(--bs-primary);
   border-radius: 999px;
   padding: 6px 12px;
+  font-weight: 600;
+}
+.insight-card {
+  display: grid;
+  gap: 12px;
+  background: var(--bs-white);
+  border: 1px solid var(--bs-gray-200);
+  border-radius: 12px;
+  padding: 16px;
+}
+.insight-card h2 {
+  margin: 0 0 4px;
+  color: var(--bs-dark);
+  font-size: 1rem;
+}
+.insight-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.insight-text {
+  color: var(--bs-gray-700);
+  background: var(--bs-gray-100);
+  border-radius: 10px;
+  padding: 12px;
+}
+.insight-error {
+  color: #D62755;
   font-weight: 600;
 }
 .table-card {
