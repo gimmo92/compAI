@@ -13,14 +13,25 @@
 </template>
 
 <script setup>
-import { RouterLink } from 'vue-router'
+import { computed } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 
-const tabs = [
-  { to: '/overview', label: 'Overview' },
-  { to: '/ai-suggestions', label: 'Suggerimenti AI' },
-  { to: '/budget', label: 'Budget' },
-  { to: '/audit', label: 'Audit' }
-]
+const route = useRoute()
+
+const tabs = computed(() => {
+  const items = [
+    { to: '/ai-suggestions', label: 'Profili' },
+    { to: '/overview', label: 'Overview' },
+    { to: '/budget', label: 'Budget' },
+    { to: '/audit', label: 'Audit' }
+  ]
+
+  if (route.name === 'profile-detail') {
+    items.splice(1, 0, { to: route.fullPath, label: 'Profilo' })
+  }
+
+  return items
+})
 </script>
 
 <style scoped>

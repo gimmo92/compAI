@@ -2,24 +2,10 @@
   <section class="page">
     <div class="header">
       <div>
-        <h1 class="page-title">Suggerimenti AI</h1>
+        <h1 class="page-title">Profili retributivi</h1>
         <p class="page-desc">Ranking & decisioni di salary review basati su benchmark.</p>
       </div>
       <span class="chip">Priority Raises</span>
-    </div>
-
-    <div class="insight-card">
-      <div>
-        <h2>GenAI Insight</h2>
-        <p class="meta">Sintesi automatica sulle priorità di incremento.</p>
-      </div>
-      <div class="insight-actions">
-        <button class="primary-btn" type="button" :disabled="insightLoading" @click="generateInsight">
-          {{ insightLoading ? 'Generazione...' : 'Genera insight' }}
-        </button>
-      </div>
-      <div v-if="insightError" class="insight-error">{{ insightError }}</div>
-      <div v-else class="insight-text">{{ insightText }}</div>
     </div>
 
     <div class="table-card">
@@ -36,7 +22,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in priorityRaises" :key="row.id" class="clickable" @click="openDetail(row)">
+          <tr v-for="row in priorityRaises" :key="row.id" class="clickable" @click="openProfile(row)">
             <td>
               <div class="name">{{ row.nome }}</div>
               <div class="meta">{{ row.ruolo }} · {{ row.dipartimento }}</div>
@@ -58,8 +44,8 @@
               <span :class="['badge', row.riskClass]">{{ row.rischio_turnover }}</span>
             </td>
             <td>
-              <button class="primary-btn" type="button" @click.stop="createOffer(row)">
-                Crea offerta
+              <button class="primary-btn" type="button" @click.stop="openProfile(row)">
+                Visualizza
               </button>
             </td>
           </tr>
@@ -67,17 +53,12 @@
       </table>
     </div>
 
-    <UserDetailSheet
-      v-if="selectedEmployee"
-      :open="sheetOpen"
-      :employee="selectedEmployee"
-      @close="sheetOpen = false"
-    />
   </section>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   employees,
   calcSuggestedRaise,
@@ -86,14 +67,7 @@ import {
   formatCurrency,
   getPriorityScore
 } from '../data/employees'
-import UserDetailSheet from '../components/UserDetailSheet.vue'
-import { generateGeminiInsight } from '../lib/geminiClient'
-
-const sheetOpen = ref(false)
-const selectedEmployee = ref(null)
-const insightText = ref('Clicca su "Genera insight" per ottenere una sintesi AI.')
-const insightLoading = ref(false)
-const insightError = ref('')
+const router = useRouter()
 
 const priorityRaises = computed(() => {
   return employees
@@ -119,37 +93,8 @@ const priorityRaises = computed(() => {
     .sort((a, b) => b.score - a.score || b.gap - a.gap)
 })
 
-const openDetail = (employee) => {
-  selectedEmployee.value = employee
-  sheetOpen.value = true
-}
-
-const createOffer = (employee) => {
-  selectedEmployee.value = employee
-  sheetOpen.value = true
-}
-
-const generateInsight = async () => {
-  insightLoading.value = true
-  insightError.value = ''
-  try {
-    const top = priorityRaises.value.slice(0, 3).map((e) => ({
-      nome: e.nome,
-      ruolo: e.ruolo,
-      gap: e.gap,
-      performance: e.performance_score
-    }))
-
-    const prompt = `Sei un HR strategist. Dai una sintesi in 4-5 frasi
-    sulle priorita di salary review per questi profili: ${JSON.stringify(top)}.
-    Evidenzia urgenze e azioni consigliate.`
-
-    insightText.value = await generateGeminiInsight(prompt)
-  } catch (error) {
-    insightError.value = 'Errore nella generazione dell\'insight AI.'
-  } finally {
-    insightLoading.value = false
-  }
+const openProfile = (employee) => {
+  router.push({ name: 'profile-detail', params: { id: employee.id } })
 }
 </script>
 
@@ -168,33 +113,6 @@ const generateInsight = async () => {
   color: var(--bs-primary);
   border-radius: 999px;
   padding: 6px 12px;
-  font-weight: 600;
-}
-.insight-card {
-  display: grid;
-  gap: 12px;
-  background: var(--bs-white);
-  border: 1px solid var(--bs-gray-200);
-  border-radius: 12px;
-  padding: 16px;
-}
-.insight-card h2 {
-  margin: 0 0 4px;
-  color: var(--bs-dark);
-  font-size: 1rem;
-}
-.insight-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-.insight-text {
-  color: var(--bs-gray-700);
-  background: var(--bs-gray-100);
-  border-radius: 10px;
-  padding: 12px;
-}
-.insight-error {
-  color: #D62755;
   font-weight: 600;
 }
 .table-card {
