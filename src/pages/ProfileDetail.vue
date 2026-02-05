@@ -60,6 +60,7 @@
           </div>
         </div>
       </div>
+
     </div>
   </section>
 </template>
@@ -100,11 +101,6 @@ const scaleMax = computed(() => {
 const scaleMed = computed(() => Math.round((scaleMin.value + scaleMax.value) / 2))
 const q1Value = computed(() => Math.round(scaleMin.value + (scaleMax.value - scaleMin.value) * 0.25))
 const q3Value = computed(() => Math.round(scaleMin.value + (scaleMax.value - scaleMin.value) * 0.75))
-
-const toPct = (value) => {
-  const range = scaleMax.value - scaleMin.value || 1
-  return ((value - scaleMin.value) / range) * 100
-}
 
 const chartSeries = computed(() => {
   if (!employee.value || !activeBenchmark.value) return []
