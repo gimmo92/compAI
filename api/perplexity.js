@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   }
 
   const systemPrompt =
-    "Sei un analista Compensation & Benefits. Cerca annunci di lavoro REALI in Italia per [role] a [location]. Estrai i dati in formato JSON: ral_min, ral_max, azienda, link_fonte, data_pubblicazione. Se non trovi la RAL, stimala basandoti su ruoli simili e segnalalo"
+    "Sei un analista Compensation & Benefits. Cerca annunci di lavoro REALI in Italia per [role] a [location]. Estrai i dati in formato JSON con un array 'items', ogni elemento deve includere: ral_min, ral_max, azienda, link_fonte, data_pubblicazione. Fornisci solo link_fonte reali (URL completi) alle fonti. Se non trovi RAL verificabili, rispondi con JSON: {\"error\":\"no_verified_salary\"} e non stimare."
       .replace('[role]', role)
       .replace('[location]', location)
 
@@ -62,7 +62,13 @@ export default async function handler(req, res) {
       return
     }
 
-    res.status(200).json({ text })
+    const citations =
+      response?.data?.citations ||
+      response?.data?.choices?.[0]?.message?.citations ||
+      response?.data?.choices?.[0]?.citations ||
+      []
+
+    res.status(200).json({ text, citations })
   } catch (error) {
     const status = error?.response?.status || (error.code === 'ECONNABORTED' ? 504 : 500)
     res.status(status).json({

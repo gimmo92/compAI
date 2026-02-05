@@ -167,16 +167,6 @@ const formatCurrency = (value) => {
   }).format(value)
 }
 
-const buildFallback = () => {
-  const base = 30000 + Math.max(0, Number(seniority.value) || 0) * 1800
-  return {
-    min: Math.round(base * 0.9),
-    med: Math.round(base),
-    max: Math.round(base * 1.2),
-    sources: []
-  }
-}
-
 const confirmRole = async () => {
   error.value = ''
   result.value = null
@@ -191,11 +181,14 @@ const confirmRole = async () => {
       role: `${name} (${seniority.value} anni)`,
       location: city.value
     })
-    result.value = parseSalaryBenchmark(response)
+    result.value = parseSalaryBenchmark(response.text, {
+      citations: response.citations,
+      requireSources: true
+    })
   } catch (err) {
     const message = err?.message || 'Errore sconosciuto'
-    error.value = `Impossibile ottenere dati live da Perplexity: ${message}. Uso una stima locale.`
-    result.value = buildFallback()
+    error.value = `Impossibile ottenere dati verificabili da Perplexity: ${message}.`
+    result.value = null
   } finally {
     loading.value = false
   }

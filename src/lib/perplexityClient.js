@@ -97,16 +97,24 @@ export const requestPerplexitySalary = async ({ role, location }) => {
   }
 
   const data = await response.json()
-  return data.text
+  return {
+    text: data.text,
+    citations: Array.isArray(data.citations) ? data.citations : []
+  }
 }
 
-export const parseSalaryBenchmark = (text) => {
+export const parseSalaryBenchmark = (text, options = {}) => {
+  const citations = Array.isArray(options.citations) ? options.citations : []
+  const requireSources = Boolean(options.requireSources)
   const jsonText = extractJson(text)
   if (!jsonText) {
     throw new Error('Invalid JSON output')
   }
 
   const parsed = JSON.parse(jsonText)
+  if (parsed?.error === 'no_verified_salary') {
+    throw new Error('Nessuna RAL verificabile trovata')
+  }
   const items = normalizeItems(parsed)
   const salaries = items
     .map((item) => {
@@ -171,7 +179,13 @@ export const parseSalaryBenchmark = (text) => {
   const med = Math.round(
     salaries.reduce((sum, item) => sum + (item.min + item.max) / 2, 0) / salaries.length
   )
-  const sources = Array.from(new Set(salaries.map((item) => item.link).filter(Boolean)))
+  const sources = Array.from(
+    new Set([...salaries.map((item) => item.link).filter(Boolean), ...citations.filter(Boolean)])
+  )
+
+  if (requireSources && !sources.length) {
+    throw new Error('Fonti non verificabili')
+  }
 
   return { min, med, max, sources }
 }

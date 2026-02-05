@@ -282,7 +282,10 @@ const updateBenchmark = async () => {
       role: employee.value.ruolo,
       location: employee.value.city || 'Milano'
     })
-    const benchmark = parseSalaryBenchmark(response)
+    const benchmark = parseSalaryBenchmark(response.text, {
+      citations: response.citations,
+      requireSources: false
+    })
     benchmarkData.value = {
       id: employee.value.id,
       min: benchmark.min,
