@@ -75,16 +75,19 @@ export default async function handler(req, res) {
     )
   }
 
+  const deepTimeoutMs = 12000
+  const fastTimeoutMs = 8000
+
   try {
     let response
     try {
-      response = await callPerplexity('sonar-deep-research', 6000, jobPostPrompt)
+      response = await callPerplexity('sonar-deep-research', deepTimeoutMs, jobPostPrompt)
     } catch (error) {
       const isTimeout = error?.code === 'ECONNABORTED'
       if (!isTimeout) {
         throw error
       }
-      response = await callPerplexity('sonar', 3000, jobPostPrompt)
+      response = await callPerplexity('sonar', fastTimeoutMs, jobPostPrompt)
     }
 
     const text = response?.data?.choices?.[0]?.message?.content
@@ -97,7 +100,7 @@ export default async function handler(req, res) {
     if (needsReportFallback) {
       let reportResponse
       try {
-        reportResponse = await callPerplexity('sonar', 3000, reportPrompt)
+        reportResponse = await callPerplexity('sonar', fastTimeoutMs, reportPrompt)
       } catch {
         reportResponse = null
       }
