@@ -25,6 +25,8 @@ export default async function handler(req, res) {
 
   const reportPrompt =
     "Sei un analista Compensation & Benefits. Cerca report salariali o pagine benchmark REALI in Italia per [role] a [location] (es. Glassdoor, LinkedIn Salary, Indeed, Payscale o report aziendali). Se non trovi per [location], espandi a Lombardia e poi a Italia, indicando il campo location_scope (Milano/Lombardia/Italia). Estrai i dati in formato JSON con un array 'items', ogni elemento deve includere: ral_min, ral_max, azienda (o fonte), link_fonte, data_pubblicazione, location_scope. Usa SOLO numeri esplicitamente presenti nella fonte, NON stimare o inventare. Fornisci solo link_fonte reali (URL completi). Non citare link non legati a salari, JSON o documentazione. Se non trovi RAL verificabili, rispondi con JSON: {\"error\":\"no_verified_salary\"}."
+      .replace('[role]', role)
+      .replace('[location]', location)
 
   const queryHints = `Query suggerite: "RAL ${role} ${location}", "stipendio ${role} ${location}", "${role} retribuzione ${location}", "salary ${role} Italy", "HR Generalist salary Milan". Preferisci siti con numeri salariali reali.`
 
@@ -48,8 +50,6 @@ export default async function handler(req, res) {
     const hintMatch = salaryHints.some((hint) => url.includes(hint))
     return hostMatch || hintMatch
   }
-      .replace('[role]', role)
-      .replace('[location]', location)
 
   const callPerplexity = async (model, timeoutMs, systemPrompt) => {
     return axios.post(
