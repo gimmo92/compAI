@@ -58,8 +58,10 @@ export default async function handler(req, res) {
         model,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: queryHints },
-          { role: 'user', content: 'Rispondi solo con JSON valido.' }
+          {
+            role: 'user',
+            content: `${queryHints}\n\nRispondi solo con JSON valido.`
+          }
         ],
         temperature: 0.2
       },
