@@ -4,7 +4,7 @@
       <div class="header-top">
         <div class="brand">
           <span class="brand-dot" />
-          <span class="brand-name">Salary Review AI</span>
+          <span class="brand-name">Compensation Intelligence</span>
         </div>
         <div class="header-actions">
           <button class="secondary-btn new-role-btn" type="button" @click="goToNewRole">

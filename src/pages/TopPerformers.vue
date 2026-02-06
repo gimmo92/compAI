@@ -2,10 +2,10 @@
   <section class="page">
     <div class="header">
       <div>
-        <h1 class="page-title">Profili retributivi</h1>
-        <p class="page-desc">Ranking & decisioni di salary review basati su benchmark.</p>
+        <h1 class="page-title">Top performer</h1>
+        <p class="page-desc">Performance elevata con RAL sotto la media di mercato.</p>
       </div>
-      <span class="chip">Priority Raises</span>
+      <span class="chip">Salary review</span>
     </div>
 
     <div class="table-card">
@@ -14,15 +14,19 @@
           <tr>
             <th>Dipendente</th>
             <th>Punteggio performance</th>
-            <th>Gap vs Mercato</th>
-            <th>Suggerimento AI</th>
-            <th>ROI di Retention</th>
-            <th>Rischio</th>
+            <th>RAL attuale</th>
+            <th>Media mercato</th>
+            <th>Gap</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in priorityRaises" :key="row.id" class="clickable" @click="openProfile(row)">
+          <tr
+            v-for="row in topPerformers"
+            :key="row.id"
+            class="clickable"
+            @click="openProfile(row)"
+          >
             <td>
               <div class="name">{{ row.nome }}</div>
               <div class="meta">{{ row.ruolo }} · {{ row.dipartimento }}</div>
@@ -30,67 +34,44 @@
             <td>
               <span class="score">{{ formatPerformance(row.performance_score) }}</span>
             </td>
+            <td>{{ formatCurrency(row.ral_attuale) }}</td>
+            <td>{{ formatCurrency(row.benchmark.med) }}</td>
             <td>
-              <span :class="row.gapClass">{{ formatCurrency(row.gap) }}</span>
-            </td>
-            <td>
-              +{{ formatCurrency(row.suggestedRaise) }} per raggiungere il mediano
-            </td>
-            <td>
-              <div class="roi">{{ formatCurrency(row.roi) }}</div>
-              <div class="meta">Costo sostituzione: {{ formatCurrency(row.retentionCost) }}</div>
-            </td>
-            <td>
-              <span :class="['badge', row.riskClass]">{{ row.rischio_turnover }}</span>
+              <span class="danger">{{ formatCurrency(row.gap) }}</span>
             </td>
             <td>
               <button class="primary-btn" type="button" @click.stop="openProfile(row)">
-                Visualizza
+                Salary review
               </button>
             </td>
+          </tr>
+          <tr v-if="!topPerformers.length">
+            <td colspan="6" class="empty-state">Nessun profilo trovato.</td>
           </tr>
         </tbody>
       </table>
     </div>
-
   </section>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  employees,
-  calcSuggestedRaise,
-  calcRetentionCost,
-  calcRetentionROI,
-  formatCurrency,
-  getPriorityScore
-} from '../data/employees'
+import { employees, formatCurrency } from '../data/employees'
+
 const router = useRouter()
 
-const priorityRaises = computed(() => {
+const topPerformers = computed(() => {
   return employees
-    .map((employee) => {
-      const gap = employee.benchmark.med - employee.ral_attuale
-      const suggestedRaise = calcSuggestedRaise(employee)
-      const retentionCost = calcRetentionCost(employee)
-      const roi = calcRetentionROI(employee)
-      const score = getPriorityScore(employee)
-      const gapClass = gap > 8000 ? 'danger' : gap > 4000 ? 'warning' : 'safe'
-      const riskClass = employee.rischio_turnover === 'alto' ? 'danger' : 'safe'
-      return {
-        ...employee,
-        gap,
-        suggestedRaise,
-        retentionCost,
-        roi,
-        score,
-        gapClass,
-        riskClass
-      }
-    })
-    .sort((a, b) => b.score - a.score || b.gap - a.gap)
+    .filter(
+      (employee) =>
+        employee.performance_score >= 4 && employee.ral_attuale < employee.benchmark.med
+    )
+    .map((employee) => ({
+      ...employee,
+      gap: employee.benchmark.med - employee.ral_attuale
+    }))
+    .sort((a, b) => b.performance_score - a.performance_score || b.gap - a.gap)
 })
 
 const openProfile = (employee) => {
@@ -160,22 +141,6 @@ const formatPerformance = (score) => {
   color: var(--bs-dark);
 }
 .danger { color: #D62755; font-weight: 700; }
-.warning { color: #f59e0b; font-weight: 700; }
-.safe { color: #16a34a; font-weight: 700; }
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  text-transform: capitalize;
-}
-.badge.danger {
-  background: rgba(214, 39, 85, 0.12);
-}
-.badge.safe {
-  background: rgba(22, 163, 74, 0.12);
-}
 .primary-btn {
   background: var(--bs-primary);
   color: white;
@@ -188,9 +153,9 @@ const formatPerformance = (score) => {
 .primary-btn:hover {
   filter: brightness(0.95);
 }
-.roi {
-  font-weight: 600;
-  color: var(--bs-dark);
+.empty-state {
+  text-align: center;
+  color: var(--bs-gray-700);
+  padding: 16px;
 }
 </style>
-

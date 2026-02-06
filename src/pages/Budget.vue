@@ -1,74 +1,60 @@
 <template>
   <section class="page">
     <h1 class="page-title">Budget</h1>
-    <p class="page-desc">Simulatore sandbox per allocare gli incrementi con priorità al rischio turnover.</p>
+    <p class="page-desc">Inserisci un budget e genera gli adeguamenti proposti.</p>
 
-    <div class="simulator-card">
-      <div class="simulator-header">
-        <div>
-          <h2>Budget Simulator</h2>
-          <p>Regola il budget totale incrementi e lascia che l'AI distribuisca.</p>
-        </div>
-        <div class="budget-pill">{{ formatCurrency(budget) }}</div>
-      </div>
-
-      <input
-        v-model.number="budget"
-        type="range"
-        min="0"
-        max="80000"
-        step="1000"
-        class="budget-slider"
-      />
-      <div class="slider-scale">
-        <span>0</span>
-        <span>80k</span>
-      </div>
-
-      <div class="summary">
-        <div class="summary-item">
-          <div class="label">Profili critici messi in sicurezza</div>
-          <div class="value safe">{{ securedCount }}</div>
-        </div>
-        <div class="summary-item">
-          <div class="label">Budget residuo</div>
-          <div class="value">{{ formatCurrency(remainingBudget) }}</div>
-        </div>
+    <div class="input-card">
+      <label class="input-label" for="budget-input">Inserisci budget (€)</label>
+      <div class="input-row">
+        <input
+          id="budget-input"
+          v-model.number="budgetInput"
+          type="number"
+          min="0"
+          step="500"
+          placeholder="Es. 50000"
+          class="budget-input"
+        />
+        <button class="primary-btn" type="button" :disabled="loading" @click="confirmBudget">
+          Conferma
+        </button>
       </div>
     </div>
 
-    <div class="table-card">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Dipendente</th>
-            <th>Rischio</th>
-            <th>Gap Mediano</th>
-            <th>Allocazione AI</th>
-            <th>Stato</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in allocationPlan" :key="row.id">
-            <td>
+    <div v-if="loading" class="loader-card">
+      <div class="loader-dot" />
+      <div>Analisi in corso...</div>
+    </div>
+
+    <div v-else-if="showResults">
+      <h2 class="section-title">Adeguamenti proposti</h2>
+      <div class="cards-grid">
+        <div v-for="row in proposedAdjustments" :key="row.id" class="proposal-card">
+          <div class="card-header">
+            <div>
               <div class="name">{{ row.nome }}</div>
               <div class="meta">{{ row.ruolo }}</div>
-            </td>
-            <td>
-              <span :class="['badge', row.riskClass]">{{ row.rischio_turnover }}</span>
-            </td>
-            <td>
-              <span :class="row.gapClass">{{ formatCurrency(row.gap) }}</span>
-            </td>
-            <td>{{ formatCurrency(row.allocated) }}</td>
-            <td>
-              <span :class="['badge', row.secured ? 'safe' : 'warning']">
-                {{ row.secured ? 'Safe' : 'Parziale' }}
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+            <div class="performance">
+              <span class="performance-label">Punteggio performance</span>
+              <span class="performance-value">{{ formatPerformance(row.performance_score) }}</span>
+            </div>
+          </div>
+          <div class="card-row">
+            <span class="label">RAL vs media mercato</span>
+            <span class="value">
+              {{ formatCurrency(row.ral_attuale) }} / {{ formatCurrency(row.benchmark.med) }}
+            </span>
+          </div>
+          <div class="card-row highlight">
+            <span class="label">Adeguamento proposto</span>
+            <span class="value">+{{ formatCurrency(row.allocated) }}</span>
+          </div>
+        </div>
+      </div>
+      <div v-if="!proposedAdjustments.length" class="empty-state">
+        Nessun adeguamento disponibile con questo budget.
+      </div>
     </div>
   </section>
 </template>
@@ -77,10 +63,14 @@
 import { computed, ref } from 'vue'
 import { employees, calcSuggestedRaise, formatCurrency } from '../data/employees'
 
-const budget = ref(50000)
+const budgetInput = ref(50000)
+const confirmedBudget = ref(null)
+const loading = ref(false)
+const showResults = ref(false)
 
 const allocationPlan = computed(() => {
-  let remaining = budget.value
+  const budgetValue = Number.isFinite(confirmedBudget.value) ? confirmedBudget.value : 0
+  let remaining = budgetValue
   return employees
     .map((employee) => {
       const gap = employee.benchmark.med - employee.ral_attuale
@@ -92,106 +82,116 @@ const allocationPlan = computed(() => {
     .map((employee) => {
       const allocated = Math.min(employee.suggestedRaise, remaining)
       remaining -= allocated
-      const secured = allocated >= employee.suggestedRaise
-      const gapClass = employee.gap > 8000 ? 'danger' : employee.gap > 4000 ? 'warning' : 'safe'
-      const riskClass = employee.rischio_turnover === 'alto' ? 'danger' : 'safe'
-      return { ...employee, allocated, secured, gapClass, riskClass }
+      return { ...employee, allocated }
     })
 })
 
-const securedCount = computed(() => allocationPlan.value.filter((row) => row.secured).length)
-const remainingBudget = computed(() => {
-  const used = allocationPlan.value.reduce((sum, row) => sum + row.allocated, 0)
-  return budget.value - used
-})
+const proposedAdjustments = computed(() =>
+  allocationPlan.value.filter((row) => row.allocated > 0)
+)
+
+const confirmBudget = () => {
+  const value = Number(budgetInput.value)
+  confirmedBudget.value = Number.isFinite(value) && value > 0 ? value : 0
+  loading.value = true
+  showResults.value = false
+  window.setTimeout(() => {
+    loading.value = false
+    showResults.value = true
+  }, 700)
+}
+
+const formatPerformance = (score) => {
+  const raw = (score / 5) * 100
+  const adjusted = Math.min(99.4, Math.max(0, raw - 1.3 + score * 0.7))
+  return `${adjusted.toFixed(1)}%`
+}
 </script>
 
 <style scoped>
 .page { display: grid; gap: 16px; }
 .page-title { margin: 0; color: var(--bs-dark); }
 .page-desc { margin: 0; color: var(--bs-gray-700); }
-.simulator-card {
+.input-card {
   background: var(--bs-white);
   border: 1px solid var(--bs-gray-200);
   border-radius: 12px;
   padding: 16px;
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
-.simulator-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-.simulator-header h2 {
-  margin: 0 0 4px;
+.input-label {
+  font-weight: 600;
   color: var(--bs-dark);
 }
-.simulator-header p {
-  margin: 0;
-  color: var(--bs-gray-700);
-}
-.budget-pill {
-  background: #e8f5e8;
-  color: #166534;
-  padding: 8px 12px;
-  border-radius: 999px;
-  font-weight: 700;
-}
-.budget-slider {
-  width: 100%;
-}
-.slider-scale {
+.input-row {
   display: flex;
-  justify-content: space-between;
-  color: var(--bs-gray-700);
-  font-size: 0.85rem;
-}
-.summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
+  align-items: center;
 }
-.summary-item {
+.budget-input {
+  flex: 1;
   border: 1px solid var(--bs-gray-200);
   border-radius: 10px;
-  padding: 12px;
-  background: var(--bs-gray-100);
+  padding: 10px 12px;
+  font-size: 1rem;
 }
-.summary-item .label {
-  color: var(--bs-gray-700);
-  font-size: 0.85rem;
+.primary-btn {
+  background: var(--bs-primary);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
 }
-.summary-item .value {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--bs-dark);
+.primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
-.summary-item .value.safe {
-  color: #16a34a;
-}
-.table-card {
+.loader-card {
   background: var(--bs-white);
   border: 1px solid var(--bs-gray-200);
   border-radius: 12px;
-  padding: 8px 8px 4px;
-}
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95rem;
-}
-.table th {
-  text-align: left;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   color: var(--bs-gray-700);
-  font-weight: 600;
-  padding: 12px;
 }
-.table td {
-  padding: 12px;
-  border-top: 1px solid var(--bs-gray-200);
-  vertical-align: top;
+.loader-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bs-primary);
+  box-shadow: 0 0 0 6px rgba(10, 108, 210, 0.12);
+  animation: pulse 1.2s infinite;
+}
+.section-title {
+  margin: 0;
+  color: var(--bs-dark);
+}
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.cards-grid > * {
+  min-width: 0;
+}
+.proposal-card {
+  background: var(--bs-white);
+  border: 1px solid var(--bs-gray-200);
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 .name {
   font-weight: 700;
@@ -201,19 +201,67 @@ const remainingBudget = computed(() => {
   font-size: 0.85rem;
   color: var(--bs-gray-700);
 }
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  text-transform: capitalize;
+.performance {
+  font-weight: 700;
+  color: var(--bs-dark);
+  background: #eef4ff;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  display: grid;
+  gap: 2px;
+  text-align: right;
 }
-.badge.danger { background: rgba(214, 39, 85, 0.12); color: #D62755; }
-.badge.safe { background: rgba(22, 163, 74, 0.12); color: #16a34a; }
-.badge.warning { background: rgba(245, 158, 11, 0.12); color: #b45309; }
-.danger { color: #D62755; font-weight: 700; }
-.warning { color: #f59e0b; font-weight: 700; }
-.safe { color: #16a34a; font-weight: 700; }
+.performance-label {
+  font-weight: 600;
+  color: var(--bs-gray-700);
+}
+.performance-value {
+  font-weight: 700;
+  color: var(--bs-dark);
+}
+
+@media (max-width: 980px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .cards-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .performance {
+    text-align: left;
+  }
+}
+.card-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.card-row .label {
+  color: var(--bs-gray-700);
+}
+.card-row .value {
+  font-weight: 600;
+  color: var(--bs-dark);
+}
+.card-row.highlight .value {
+  color: #16a34a;
+}
+.empty-state {
+  background: var(--bs-gray-100);
+  border: 1px solid var(--bs-gray-200);
+  border-radius: 10px;
+  padding: 16px;
+  color: var(--bs-gray-700);
+}
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.6; }
+}
 </style>
 
