@@ -19,12 +19,12 @@ export default async function handler(req, res) {
   }
 
   const jobPostPrompt =
-    "Sei un analista Compensation & Benefits. Cerca annunci di lavoro REALI in Italia per [role] a [location]. Estrai i dati in formato JSON con un array 'items', ogni elemento deve includere: ral_min, ral_max, azienda, link_fonte, data_pubblicazione. Fornisci solo link_fonte reali (URL completi) alle fonti. Se non trovi RAL verificabili, rispondi con JSON: {\"error\":\"no_verified_salary\"} e non stimare."
+    "Sei un analista Compensation & Benefits. Cerca annunci di lavoro REALI in Italia per [role] a [location]. Se non trovi RAL per [location], espandi a Lombardia e poi a Italia, indicando il campo location_scope (Milano/Lombardia/Italia). Estrai i dati in formato JSON con un array 'items', ogni elemento deve includere: ral_min, ral_max, azienda, link_fonte, data_pubblicazione, location_scope. Usa SOLO numeri esplicitamente presenti nella fonte, NON stimare o inventare. Fornisci solo link_fonte reali (URL completi). Se non trovi RAL verificabili, rispondi con JSON: {\"error\":\"no_verified_salary\"}."
       .replace('[role]', role)
       .replace('[location]', location)
 
   const reportPrompt =
-    "Sei un analista Compensation & Benefits. Cerca report salariali o pagine benchmark REALI in Italia per [role] a [location] (es. Glassdoor, LinkedIn Salary, Indeed, Payscale o report aziendali). Estrai i dati in formato JSON con un array 'items', ogni elemento deve includere: ral_min, ral_max, azienda (o fonte), link_fonte, data_pubblicazione. Fornisci solo link_fonte reali (URL completi) alle fonti. Se non trovi RAL verificabili, rispondi con JSON: {\"error\":\"no_verified_salary\"} e non stimare."
+    "Sei un analista Compensation & Benefits. Cerca report salariali o pagine benchmark REALI in Italia per [role] a [location] (es. Glassdoor, LinkedIn Salary, Indeed, Payscale o report aziendali). Se non trovi per [location], espandi a Lombardia e poi a Italia, indicando il campo location_scope (Milano/Lombardia/Italia). Estrai i dati in formato JSON con un array 'items', ogni elemento deve includere: ral_min, ral_max, azienda (o fonte), link_fonte, data_pubblicazione, location_scope. Usa SOLO numeri esplicitamente presenti nella fonte, NON stimare o inventare. Fornisci solo link_fonte reali (URL completi). Se non trovi RAL verificabili, rispondi con JSON: {\"error\":\"no_verified_salary\"}."
       .replace('[role]', role)
       .replace('[location]', location)
 
