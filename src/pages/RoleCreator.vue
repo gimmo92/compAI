@@ -37,14 +37,29 @@
         <h2>Dati retributivi</h2>
         <span class="result-chip">{{ roleName || 'Ruolo' }} · {{ city || 'Città' }}</span>
       </div>
-      <div class="chart-card">
-        <VueApexCharts
-          type="boxPlot"
-          height="260"
-          :key="chartKey"
-          :options="chartOptions"
-          :series="chartSeries"
-        />
+      <div class="result-row">
+        <div class="chart-card">
+          <VueApexCharts
+            type="boxPlot"
+            height="260"
+            :key="chartKey"
+            :options="chartOptions"
+            :series="chartSeries"
+          />
+        </div>
+        <div v-if="result.sources?.length" class="result-sources">
+          <div class="sources-title">Fonti suggerite</div>
+          <a
+            v-for="source in result.sources"
+            :key="source"
+            class="source-link"
+            :href="source"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {{ source }}
+          </a>
+        </div>
       </div>
       <div class="result-grid">
         <div class="result-item">
@@ -59,19 +74,6 @@
           <span class="label">Max</span>
           <span class="value">{{ formatCurrency(result.max) }}</span>
         </div>
-      </div>
-      <div v-if="result.sources?.length" class="result-sources">
-        <div class="sources-title">Fonti suggerite</div>
-        <a
-          v-for="source in result.sources"
-          :key="source"
-          class="source-link"
-          :href="source"
-          target="_blank"
-          rel="noreferrer"
-        >
-          {{ source }}
-        </a>
       </div>
     </div>
   </section>
@@ -167,6 +169,30 @@ const formatCurrency = (value) => {
   }).format(value)
 }
 
+const cacheKeyFor = (name, location, years) => {
+  return `role-benchmark:${name.toLowerCase()}:${location.toLowerCase()}:${years}`
+}
+
+const loadCachedResult = (key) => {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || !Number.isFinite(parsed.min) || !Number.isFinite(parsed.max)) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+const saveCachedResult = (key, payload) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(payload))
+  } catch {
+    // ignore storage failures
+  }
+}
+
 const confirmRole = async () => {
   error.value = ''
   result.value = null
@@ -181,14 +207,24 @@ const confirmRole = async () => {
       role: `${name} (${seniority.value} anni)`,
       location: city.value
     })
-    result.value = parseSalaryBenchmark(response.text, {
+    const parsed = parseSalaryBenchmark(response.text, {
       citations: response.citations,
       requireSources: true
     })
+    result.value = parsed
+    const key = cacheKeyFor(name, city.value.trim(), seniority.value)
+    saveCachedResult(key, parsed)
   } catch (err) {
     const message = err?.message || 'Errore sconosciuto'
-    error.value = `Impossibile ottenere dati verificabili da Perplexity: ${message}.`
-    result.value = null
+    const key = cacheKeyFor(name, city.value.trim(), seniority.value)
+    const cached = loadCachedResult(key)
+    if (cached) {
+      result.value = cached
+      error.value = `Dati live non disponibili: ${message}. Mostrati gli ultimi dati verificati.`
+    } else {
+      error.value = `Impossibile ottenere dati verificabili da Perplexity: ${message}.`
+      result.value = null
+    }
   } finally {
     loading.value = false
   }
@@ -293,6 +329,15 @@ const confirmRole = async () => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
+.result-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.result-row > * {
+  min-width: 0;
+}
 .chart-card {
   background: var(--bs-gray-100);
   border: 1px solid var(--bs-gray-200);
@@ -318,6 +363,10 @@ const confirmRole = async () => {
 .result-sources {
   display: grid;
   gap: 6px;
+  background: var(--bs-gray-100);
+  border: 1px solid var(--bs-gray-200);
+  border-radius: 12px;
+  padding: 12px;
 }
 .sources-title {
   font-weight: 600;
