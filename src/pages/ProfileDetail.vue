@@ -211,6 +211,30 @@ const chartKey = computed(() => {
   return `${employee.value.id}-${min}-${med}-${max}`
 })
 
+const cacheKeyForProfile = (id, role, location) => {
+  return `benchmark_profile_${String(id)}_${String(role)}_${String(location)}`
+}
+
+const loadCachedBenchmark = (key) => {
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || !Number.isFinite(parsed.min) || !Number.isFinite(parsed.max)) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+const saveCachedBenchmark = (key, payload) => {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(payload))
+  } catch {
+    // ignore cache write failures
+  }
+}
+
 const buildSearchUrl = (label, query) => {
   const encoded = encodeURIComponent(query)
   if (label === 'LinkedIn') {
@@ -278,29 +302,41 @@ const updateBenchmark = async () => {
   benchmarkLoading.value = true
   benchmarkError.value = ''
   try {
-    const response = await requestPerplexitySalary({
-      role: employee.value.ruolo,
-      location: employee.value.city || 'Milano'
-    })
+    const role = employee.value.ruolo
+    const location = employee.value.city || 'Milano'
+    const response = await requestPerplexitySalary({ role, location })
     const benchmark = parseSalaryBenchmark(response.text, {
       citations: response.citations,
       requireSources: false
     })
-    benchmarkData.value = {
+    const nextBenchmark = {
       id: employee.value.id,
       min: benchmark.min,
       med: benchmark.med,
       max: benchmark.max,
       sources: benchmark.sources
     }
+    benchmarkData.value = nextBenchmark
+    const cacheKey = cacheKeyForProfile(employee.value.id, role, location)
+    saveCachedBenchmark(cacheKey, nextBenchmark)
   } catch (error) {
-    benchmarkError.value = 'Impossibile aggiornare il benchmark da Perplexity. Riprova.'
-    benchmarkData.value = {
-      id: employee.value.id,
-      min: employee.value.benchmark.min,
-      med: employee.value.benchmark.med,
-      max: employee.value.benchmark.max,
-      sources: [employee.value.source_link]
+    const message = error?.message || 'Errore sconosciuto'
+    const role = employee.value.ruolo
+    const location = employee.value.city || 'Milano'
+    const cacheKey = cacheKeyForProfile(employee.value.id, role, location)
+    const cached = loadCachedBenchmark(cacheKey)
+    if (cached) {
+      benchmarkData.value = cached
+      benchmarkError.value = `Dati live non disponibili: ${message}. Mostrati gli ultimi dati verificati.`
+    } else {
+      benchmarkError.value = `Impossibile aggiornare il benchmark da Perplexity: ${message}.`
+      benchmarkData.value = {
+        id: employee.value.id,
+        min: employee.value.benchmark.min,
+        med: employee.value.benchmark.med,
+        max: employee.value.benchmark.max,
+        sources: [employee.value.source_link]
+      }
     }
   } finally {
     benchmarkLoading.value = false
