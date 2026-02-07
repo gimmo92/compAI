@@ -13,10 +13,18 @@ export default async function handler(req, res) {
   }
 
   const serperApiKey = process.env.SERPER_API_KEY
-  const buildSerperQueries = () => [
+  const buildStrictQueries = () => [
     `site:linkedin.com/jobs/view "${role}" "${location}" "RAL" "€"`,
     `site:indeed.com/viewjob "${role}" "${location}" "RAL" "€"`,
     `site:indeed.com/job "${role}" "${location}" "RAL" "€"`
+  ]
+  const buildFallbackQueries = () => [
+    `site:linkedin.com/jobs/view "${role}" "${location}"`,
+    `site:indeed.com/viewjob "${role}" "${location}"`,
+    `site:indeed.com/job "${role}" "${location}"`,
+    `site:linkedin.com/jobs/view "${role}" "${location}" stipendio`,
+    `site:indeed.com/viewjob "${role}" "${location}" stipendio`,
+    `site:indeed.com/job "${role}" "${location}" stipendio`
   ]
 
   const toNumber = (value) => {
@@ -82,14 +90,13 @@ export default async function handler(req, res) {
     return isLinkedInJob || isIndeedJob
   }
 
-  const fetchSerperResults = async () => {
+  const fetchSerperResults = async (queries, num = 6) => {
     if (!serperApiKey) return []
-    const queries = buildSerperQueries()
     const results = await Promise.all(
       queries.map((query) =>
         axios.post(
           'https://google.serper.dev/search',
-          { q: query, num: 5 },
+          { q: query, num },
           {
             headers: {
               'X-API-KEY': serperApiKey,
@@ -112,7 +119,10 @@ export default async function handler(req, res) {
       return
     }
 
-    const serperResults = await fetchSerperResults().catch(() => [])
+    let serperResults = await fetchSerperResults(buildStrictQueries(), 6).catch(() => [])
+    if (!serperResults.length) {
+      serperResults = await fetchSerperResults(buildFallbackQueries(), 6).catch(() => [])
+    }
     if (!serperResults.length) {
       res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
       return
