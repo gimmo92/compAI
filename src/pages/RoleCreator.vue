@@ -29,6 +29,19 @@
           {{ loading ? 'Elaborazione...' : 'Conferma' }}
         </button>
         <div v-if="error" class="error-text">{{ error }}</div>
+        <div v-if="searchedSources.length" class="searched-sources">
+          <div class="sources-title">Fonti consultate</div>
+          <a
+            v-for="source in searchedSources"
+            :key="source"
+            class="source-link"
+            :href="source"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {{ source }}
+          </a>
+        </div>
       </div>
     </div>
 
@@ -90,6 +103,7 @@ const seniority = ref(5)
 const loading = ref(false)
 const error = ref('')
 const result = ref(null)
+const searchedSources = ref([])
 
 const chartKey = computed(() => {
   if (!result.value) return 'empty'
@@ -196,6 +210,7 @@ const saveCachedResult = (key, payload) => {
 const confirmRole = async () => {
   error.value = ''
   result.value = null
+  searchedSources.value = []
   const name = roleName.value.trim()
   if (!name || !city.value.trim()) {
     error.value = 'Compila nome ruolo e città.'
@@ -207,10 +222,18 @@ const confirmRole = async () => {
       role: `${name} (${seniority.value} anni)`,
       location: city.value
     })
-    const parsed = parseSalaryBenchmark(response.text, {
-      citations: response.citations,
-      requireSources: true
-    })
+    let parsed
+    try {
+      parsed = parseSalaryBenchmark(response.text, {
+        citations: response.citations,
+        requireSources: true
+      })
+    } catch (parseError) {
+      if (response?.citations?.length) {
+        searchedSources.value = Array.from(new Set(response.citations))
+      }
+      throw parseError
+    }
     result.value = parsed
     const key = cacheKeyFor(name, city.value.trim(), seniority.value)
     saveCachedResult(key, parsed)
@@ -367,6 +390,11 @@ const confirmRole = async () => {
   border: 1px solid var(--bs-gray-200);
   border-radius: 12px;
   padding: 12px;
+}
+.searched-sources {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
 }
 .sources-title {
   font-weight: 600;

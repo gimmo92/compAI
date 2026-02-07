@@ -118,6 +118,10 @@ export default async function handler(req, res) {
       return
     }
 
+    const fallbackCitations = Array.from(
+      new Set(serperResults.map((item) => item?.link).filter(Boolean))
+    ).filter(isRelevantCitation)
+
     const items = serperResults
       .map((item) => {
         const text = `${item?.title || ''} ${item?.snippet || ''}`
@@ -136,7 +140,9 @@ export default async function handler(req, res) {
       .filter((item) => item && isRelevantCitation(item.link_fonte))
 
     if (!items.length) {
-      res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
+      res
+        .status(200)
+        .json({ text: '{"error":"no_verified_salary"}', citations: fallbackCitations })
       return
     }
 
