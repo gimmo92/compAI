@@ -6,33 +6,11 @@ export default async function handler(req, res) {
     return
   }
 
-  const apiKey = process.env.PERPLEXITY_API_KEY
-  if (!apiKey) {
-    res.status(500).json({ error: 'Missing PERPLEXITY_API_KEY' })
-    return
-  }
-
   const { role, location } = req.body || {}
   if (!role || !location) {
     res.status(400).json({ error: 'Missing role or location' })
     return
   }
-
-  const jobPostPrompt =
-    "Trova 5 annunci di lavoro ATTIVI su LinkedIn o Indeed per [role] a [location] che riportino esplicitamente la RAL o un range salariale nel testo. Non fornire siti di medie salariali o calcolatori. Voglio il link diretto all'annuncio e la cifra indicata. Se non ne trovi, cerca tra gli annunci pubblicati negli ultimi 30 giorni. Rispondi SOLO con JSON: {\"items\":[{\"ral_min\":number,\"ral_max\":number,\"azienda\":string,\"link_fonte\":string,\"data_pubblicazione\":string,\"location_scope\":string}]}. Se non trovi annunci con RAL verificabile, rispondi con JSON: {\"error\":\"no_verified_salary\"}."
-      .replace('[role]', role)
-      .replace('[location]', location)
-
-  const reportPrompt =
-    "Sei un analista Compensation & Benefits. Cerca report salariali o pagine benchmark REALI in Italia per [role] a [location] (es. Glassdoor, LinkedIn Salary, Indeed, Payscale o report aziendali). Se non trovi per [location], espandi a Lombardia e poi a Italia, indicando il campo location_scope (Milano/Lombardia/Italia). Estrai i dati in formato JSON con un array 'items', ogni elemento deve includere: ral_min, ral_max, azienda (o fonte), link_fonte, data_pubblicazione, location_scope. Usa SOLO numeri esplicitamente presenti nella fonte, NON stimare o inventare. Fornisci solo link_fonte reali (URL completi). Non citare link non legati a salari, JSON o documentazione. Se non trovi RAL verificabili, rispondi con JSON: {\"error\":\"no_verified_salary\"}."
-      .replace('[role]', role)
-      .replace('[location]', location)
-
-  const queryHints = `Usa query mirate solo a job post:
-1) site:linkedin.com/jobs/view "${role}" "${location}" "RAL" "€"
-2) site:indeed.com/viewjob "${role}" "${location}" "RAL" "€"
-3) site:indeed.com/job "${role}" "${location}" "RAL" "€"
-Escludi report salariali e calcolatori.`
 
   const serperApiKey = process.env.SERPER_API_KEY
   const buildSerperQueries = () => [
@@ -40,6 +18,61 @@ Escludi report salariali e calcolatori.`
     `site:indeed.com/viewjob "${role}" "${location}" "RAL" "€"`,
     `site:indeed.com/job "${role}" "${location}" "RAL" "€"`
   ]
+
+  const toNumber = (value) => {
+    if (value === null || value === undefined) return NaN
+    const text = String(value).trim()
+    if (!text) return NaN
+    const multiplier = /[kK]\b/.test(text) ? 1000 : /[mM]\b/.test(text) ? 1000000 : 1
+    const cleaned = text.replace(/[^\d.,-]/g, '')
+    if (!cleaned) return NaN
+    const hasDot = cleaned.includes('.')
+    const hasComma = cleaned.includes(',')
+    let normalized = cleaned
+    if (hasDot && hasComma) {
+      normalized = cleaned.replace(/\./g, '').replace(',', '.')
+    } else if (hasComma) {
+      const parts = cleaned.split(',')
+      if (parts[1]?.length === 3) {
+        normalized = parts.join('')
+      } else {
+        normalized = parts.join('.')
+      }
+    } else if (hasDot) {
+      const parts = cleaned.split('.')
+      if (parts[1]?.length === 3) {
+        normalized = parts.join('')
+      }
+    }
+    const number = Number(normalized)
+    return Number.isFinite(number) ? number * multiplier : NaN
+  }
+
+  const parseRange = (value) => {
+    if (!value) return null
+    const matches = String(value).match(/(\d[\d.,]*\s*[kKmM]?)/g)
+    if (!matches || !matches.length) return null
+    const numbers = matches.map((entry) => toNumber(entry)).filter(Number.isFinite)
+    if (!numbers.length) return null
+    const min = Math.min(...numbers)
+    const max = Math.max(...numbers)
+    return { min, max }
+  }
+
+  const normalizeRange = (min, max) => {
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return null
+    let normalizedMin = min
+    let normalizedMax = max
+    if (normalizedMin > normalizedMax) {
+      ;[normalizedMin, normalizedMax] = [normalizedMax, normalizedMin]
+    }
+    if (normalizedMax < 1000) {
+      normalizedMin *= 1000
+      normalizedMax *= 1000
+    }
+    if (normalizedMax < 15000) return null
+    return { min: normalizedMin, max: normalizedMax }
+  }
 
   const isRelevantCitation = (value) => {
     if (!value) return false
@@ -49,7 +82,7 @@ Escludi report salariali e calcolatori.`
     return isLinkedInJob || isIndeedJob
   }
 
-  const fetchSerperLinks = async () => {
+  const fetchSerperResults = async () => {
     if (!serperApiKey) return []
     const queries = buildSerperQueries()
     const results = await Promise.all(
@@ -67,39 +100,11 @@ Escludi report salariali e calcolatori.`
         )
       )
     )
-    const links = results.flatMap((response) => {
+    return results.flatMap((response) => {
       const organic = response?.data?.organic || []
-      return organic.map((item) => item?.link).filter(Boolean)
+      return organic
     })
-    return Array.from(new Set(links)).filter(isRelevantCitation)
   }
-
-  const callPerplexity = async (model, timeoutMs, systemPrompt, userContent) => {
-    return axios.post(
-      'https://api.perplexity.ai/chat/completions',
-      {
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: `${userContent}\n\nRispondi solo con JSON valido.`
-          }
-        ],
-        temperature: 0.2
-      },
-      {
-        timeout: timeoutMs,
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
-  }
-
-  const deepTimeoutMs = 12000
-  const fastTimeoutMs = 8000
 
   try {
     if (!serperApiKey) {
@@ -107,65 +112,43 @@ Escludi report salariali e calcolatori.`
       return
     }
 
-    const serperLinks = await fetchSerperLinks().catch(() => [])
-    if (!serperLinks.length) {
+    const serperResults = await fetchSerperResults().catch(() => [])
+    if (!serperResults.length) {
       res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
       return
     }
 
-    const userContent = `Usa SOLO questi job post (link diretti) come fonti verificabili. Ignora tutto il resto:\n${serperLinks
-      .map((link, index) => `${index + 1}) ${link}`)
-      .join('\n')}`
+    const items = serperResults
+      .map((item) => {
+        const text = `${item?.title || ''} ${item?.snippet || ''}`
+        const range = parseRange(text)
+        const normalized = range ? normalizeRange(range.min, range.max) : null
+        if (!normalized) return null
+        return {
+          ral_min: normalized.min,
+          ral_max: normalized.max,
+          azienda: item?.title || '',
+          link_fonte: item?.link || '',
+          data_pubblicazione: '',
+          location_scope: location
+        }
+      })
+      .filter((item) => item && isRelevantCitation(item.link_fonte))
 
-    let response
-    try {
-      response = await callPerplexity('sonar-deep-research', deepTimeoutMs, jobPostPrompt, userContent)
-    } catch (error) {
-      const isTimeout = error?.code === 'ECONNABORTED'
-      if (!isTimeout) {
-        throw error
-      }
-      response = await callPerplexity('sonar', fastTimeoutMs, jobPostPrompt, userContent)
-    }
-
-    const text = response?.data?.choices?.[0]?.message?.content
-    if (!text) {
-      res.status(502).json({ error: 'Invalid response from Perplexity' })
-      return
-    }
-
-    const needsReportFallback = /"error"\s*:\s*"no_verified_salary"/i.test(text)
-    if (needsReportFallback) {
-      let reportResponse
-      try {
-        reportResponse = await callPerplexity('sonar', fastTimeoutMs, reportPrompt, userContent)
-      } catch {
-        reportResponse = null
-      }
-      if (reportResponse?.data?.choices?.[0]?.message?.content) {
-        response = reportResponse
-      }
-    }
-
-    const finalText = response?.data?.choices?.[0]?.message?.content
-    const citations =
-      response?.data?.citations ||
-      response?.data?.choices?.[0]?.message?.citations ||
-      response?.data?.choices?.[0]?.citations ||
-      []
-    const filteredCitations = citations.filter(isRelevantCitation)
-    const hasVerifiedSalary = !/"error"\s*:\s*"no_verified_salary"/i.test(finalText || '')
-
-    if (!hasVerifiedSalary && !filteredCitations.length) {
+    if (!items.length) {
       res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
       return
     }
 
-    res.status(200).json({ text: finalText, citations: filteredCitations })
+    const citations = Array.from(
+      new Set(items.map((item) => item.link_fonte).filter(Boolean))
+    ).filter(isRelevantCitation)
+
+    res.status(200).json({ text: JSON.stringify({ items }), citations })
   } catch (error) {
     const status = error?.response?.status || (error.code === 'ECONNABORTED' ? 504 : 500)
     res.status(status).json({
-      error: 'Perplexity request failed',
+      error: 'Serper request failed',
       details: error?.response?.data || String(error)
     })
   }
