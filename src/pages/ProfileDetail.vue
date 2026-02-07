@@ -329,7 +329,7 @@ const updateBenchmark = async () => {
       benchmarkData.value = cached
       benchmarkError.value = `Dati live non disponibili: ${message}. Mostrati gli ultimi dati verificati.`
     } else {
-      benchmarkError.value = `Impossibile aggiornare il benchmark da Perplexity: ${message}.`
+      benchmarkError.value = `Impossibile aggiornare il benchmark da Serper: ${message}.`
       benchmarkData.value = {
         id: employee.value.id,
         min: employee.value.benchmark.min,

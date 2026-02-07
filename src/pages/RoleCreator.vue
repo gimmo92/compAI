@@ -222,7 +222,7 @@ const confirmRole = async () => {
       result.value = cached
       error.value = `Dati live non disponibili: ${message}. Mostrati gli ultimi dati verificati.`
     } else {
-      error.value = `Impossibile ottenere dati verificabili da Perplexity: ${message}.`
+      error.value = `Impossibile ottenere dati verificabili da Serper: ${message}.`
       result.value = null
     }
   } finally {

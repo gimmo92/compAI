@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/perplexity.js": {
+    "api/serper.js": {
       "maxDuration": 30
     }
   },

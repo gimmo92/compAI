@@ -72,7 +72,7 @@ export const requestPerplexitySalary = async ({ role, location }) => {
 
   let response
   try {
-    response = await fetch('/api/perplexity', {
+    response = await fetch('/api/serper', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role, location }),
@@ -80,7 +80,7 @@ export const requestPerplexitySalary = async ({ role, location }) => {
     })
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new Error('Timeout Perplexity (30s)')
+      throw new Error('Timeout Serper (30s)')
     }
     throw error
   } finally {
@@ -90,7 +90,7 @@ export const requestPerplexitySalary = async ({ role, location }) => {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     if (response.status === 404) {
-      throw new Error('Endpoint /api/perplexity non disponibile (usa vercel dev o deploy)')
+      throw new Error('Endpoint /api/serper non disponibile (usa vercel dev o deploy)')
     }
     const details =
       typeof error?.details === 'string'
@@ -98,7 +98,7 @@ export const requestPerplexitySalary = async ({ role, location }) => {
         : error?.details
         ? JSON.stringify(error.details)
         : ''
-    const message = error?.error || `Perplexity request failed (${response.status})`
+    const message = error?.error || `Request failed (${response.status})`
     throw new Error(details ? `${message} - ${details}` : message)
   }
 
