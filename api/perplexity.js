@@ -28,27 +28,18 @@ export default async function handler(req, res) {
       .replace('[role]', role)
       .replace('[location]', location)
 
-  const queryHints = `Query suggerite: "RAL ${role} ${location}", "stipendio ${role} ${location}", "${role} retribuzione ${location}", "salary ${role} Italy", "HR Generalist salary Milan". Preferisci siti con numeri salariali reali.`
+  const queryHints = `Usa query mirate solo a job post:
+1) site:linkedin.com/jobs/view "${role}" "${location}" "RAL" "€"
+2) site:indeed.com/viewjob "${role}" "${location}" "RAL" "€"
+3) site:indeed.com/job "${role}" "${location}" "RAL" "€"
+Escludi report salariali e calcolatori.`
 
   const isRelevantCitation = (value) => {
     if (!value) return false
     const url = String(value).toLowerCase()
-    const allowedHosts = [
-      'glassdoor',
-      'indeed',
-      'linkedin.com/salary',
-      'payscale',
-      'salaryexpert',
-      'talent.com',
-      'monster',
-      'jooble',
-      'job',
-      'jobs'
-    ]
-    const salaryHints = ['salary', 'stipend', 'retribuz', 'ral', 'compensation']
-    const hostMatch = allowedHosts.some((host) => url.includes(host))
-    const hintMatch = salaryHints.some((hint) => url.includes(hint))
-    return hostMatch || hintMatch
+    const isLinkedInJob = url.includes('linkedin.com/jobs/view')
+    const isIndeedJob = url.includes('indeed.com/viewjob') || url.includes('indeed.com/job')
+    return isLinkedInJob || isIndeedJob
   }
 
   const callPerplexity = async (model, timeoutMs, systemPrompt) => {
