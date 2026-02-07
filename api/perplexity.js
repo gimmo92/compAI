@@ -34,6 +34,13 @@ export default async function handler(req, res) {
 3) site:indeed.com/job "${role}" "${location}" "RAL" "€"
 Escludi report salariali e calcolatori.`
 
+  const serperApiKey = process.env.SERPER_API_KEY
+  const buildSerperQueries = () => [
+    `site:linkedin.com/jobs/view "${role}" "${location}" "RAL" "€"`,
+    `site:indeed.com/viewjob "${role}" "${location}" "RAL" "€"`,
+    `site:indeed.com/job "${role}" "${location}" "RAL" "€"`
+  ]
+
   const isRelevantCitation = (value) => {
     if (!value) return false
     const url = String(value).toLowerCase()
@@ -42,7 +49,32 @@ Escludi report salariali e calcolatori.`
     return isLinkedInJob || isIndeedJob
   }
 
-  const callPerplexity = async (model, timeoutMs, systemPrompt) => {
+  const fetchSerperLinks = async () => {
+    if (!serperApiKey) return []
+    const queries = buildSerperQueries()
+    const results = await Promise.all(
+      queries.map((query) =>
+        axios.post(
+          'https://google.serper.dev/search',
+          { q: query, num: 5 },
+          {
+            headers: {
+              'X-API-KEY': serperApiKey,
+              'Content-Type': 'application/json'
+            },
+            timeout: 6000
+          }
+        )
+      )
+    )
+    const links = results.flatMap((response) => {
+      const organic = response?.data?.organic || []
+      return organic.map((item) => item?.link).filter(Boolean)
+    })
+    return Array.from(new Set(links)).filter(isRelevantCitation)
+  }
+
+  const callPerplexity = async (model, timeoutMs, systemPrompt, userContent) => {
     return axios.post(
       'https://api.perplexity.ai/chat/completions',
       {
@@ -51,7 +83,7 @@ Escludi report salariali e calcolatori.`
           { role: 'system', content: systemPrompt },
           {
             role: 'user',
-            content: `${queryHints}\n\nRispondi solo con JSON valido.`
+            content: `${userContent}\n\nRispondi solo con JSON valido.`
           }
         ],
         temperature: 0.2
@@ -70,15 +102,22 @@ Escludi report salariali e calcolatori.`
   const fastTimeoutMs = 8000
 
   try {
+    const serperLinks = await fetchSerperLinks().catch(() => [])
+    const userContent = serperLinks.length
+      ? `Usa SOLO questi job post (link diretti) come fonti verificabili. Ignora tutto il resto:\n${serperLinks
+          .map((link, index) => `${index + 1}) ${link}`)
+          .join('\n')}`
+      : queryHints
+
     let response
     try {
-      response = await callPerplexity('sonar-deep-research', deepTimeoutMs, jobPostPrompt)
+      response = await callPerplexity('sonar-deep-research', deepTimeoutMs, jobPostPrompt, userContent)
     } catch (error) {
       const isTimeout = error?.code === 'ECONNABORTED'
       if (!isTimeout) {
         throw error
       }
-      response = await callPerplexity('sonar', fastTimeoutMs, jobPostPrompt)
+      response = await callPerplexity('sonar', fastTimeoutMs, jobPostPrompt, userContent)
     }
 
     const text = response?.data?.choices?.[0]?.message?.content
@@ -91,7 +130,7 @@ Escludi report salariali e calcolatori.`
     if (needsReportFallback) {
       let reportResponse
       try {
-        reportResponse = await callPerplexity('sonar', fastTimeoutMs, reportPrompt)
+        reportResponse = await callPerplexity('sonar', fastTimeoutMs, reportPrompt, userContent)
       } catch {
         reportResponse = null
       }
