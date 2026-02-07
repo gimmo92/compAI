@@ -102,12 +102,20 @@ Escludi report salariali e calcolatori.`
   const fastTimeoutMs = 8000
 
   try {
+    if (!serperApiKey) {
+      res.status(500).json({ error: 'Missing SERPER_API_KEY' })
+      return
+    }
+
     const serperLinks = await fetchSerperLinks().catch(() => [])
-    const userContent = serperLinks.length
-      ? `Usa SOLO questi job post (link diretti) come fonti verificabili. Ignora tutto il resto:\n${serperLinks
-          .map((link, index) => `${index + 1}) ${link}`)
-          .join('\n')}`
-      : queryHints
+    if (!serperLinks.length) {
+      res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
+      return
+    }
+
+    const userContent = `Usa SOLO questi job post (link diretti) come fonti verificabili. Ignora tutto il resto:\n${serperLinks
+      .map((link, index) => `${index + 1}) ${link}`)
+      .join('\n')}`
 
     let response
     try {
