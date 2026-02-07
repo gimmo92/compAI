@@ -13,18 +13,33 @@ export default async function handler(req, res) {
   }
 
   const serperApiKey = process.env.SERPER_API_KEY
+  const roleTerm = String(role).trim()
+  const locationTerm = String(location).trim()
+  const extraRoleTerms =
+    roleTerm.toLowerCase() === 'hr'
+      ? ['HR', 'Human Resources', 'HR Manager', 'HR Specialist']
+      : []
+
   const buildStrictQueries = () => [
-    `site:linkedin.com/jobs/view "${role}" "${location}" "RAL" "€"`,
-    `site:indeed.com/viewjob "${role}" "${location}" "RAL" "€"`,
-    `site:indeed.com/job "${role}" "${location}" "RAL" "€"`
+    `site:linkedin.com/jobs/view "${roleTerm}" "${locationTerm}" "RAL" "€"`,
+    `site:indeed.com/viewjob "${roleTerm}" "${locationTerm}" "RAL" "€"`,
+    `site:indeed.com/job "${roleTerm}" "${locationTerm}" "RAL" "€"`
   ]
   const buildFallbackQueries = () => [
-    `site:linkedin.com/jobs/view "${role}" "${location}"`,
-    `site:indeed.com/viewjob "${role}" "${location}"`,
-    `site:indeed.com/job "${role}" "${location}"`,
-    `site:linkedin.com/jobs/view "${role}" "${location}" stipendio`,
-    `site:indeed.com/viewjob "${role}" "${location}" stipendio`,
-    `site:indeed.com/job "${role}" "${location}" stipendio`
+    `site:linkedin.com/jobs/view ${roleTerm} ${locationTerm}`,
+    `site:indeed.com/viewjob ${roleTerm} ${locationTerm}`,
+    `site:indeed.com/job ${roleTerm} ${locationTerm}`,
+    `site:linkedin.com/jobs/view "${roleTerm}"`,
+    `site:indeed.com/viewjob "${roleTerm}"`,
+    `site:indeed.com/job "${roleTerm}"`,
+    `site:linkedin.com/jobs/view ${roleTerm} ${locationTerm} stipendio`,
+    `site:indeed.com/viewjob ${roleTerm} ${locationTerm} stipendio`,
+    `site:indeed.com/job ${roleTerm} ${locationTerm} stipendio`,
+    ...extraRoleTerms.flatMap((term) => [
+      `site:linkedin.com/jobs/view "${term}" "${locationTerm}"`,
+      `site:indeed.com/viewjob "${term}" "${locationTerm}"`,
+      `site:indeed.com/job "${term}" "${locationTerm}"`
+    ])
   ]
 
   const toNumber = (value) => {
@@ -90,13 +105,13 @@ export default async function handler(req, res) {
     return isLinkedInJob || isIndeedJob
   }
 
-  const fetchSerperResults = async (queries, num = 6) => {
+  const fetchSerperResults = async (queries, num = 10) => {
     if (!serperApiKey) return []
     const results = await Promise.all(
       queries.map((query) =>
         axios.post(
           'https://google.serper.dev/search',
-          { q: query, num },
+          { q: query, num, gl: 'it', hl: 'it' },
           {
             headers: {
               'X-API-KEY': serperApiKey,
