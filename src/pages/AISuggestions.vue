@@ -57,7 +57,6 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   employees,
-  calcSuggestedRaise,
   calcRetentionCost,
   calcRetentionROI,
   formatCurrency,
@@ -69,7 +68,6 @@ const priorityRaises = computed(() => {
   return employees
     .map((employee) => {
       const gap = employee.benchmark.med - employee.ral_attuale
-      const suggestedRaise = calcSuggestedRaise(employee)
       const retentionCost = calcRetentionCost(employee)
       const roi = calcRetentionROI(employee)
       const score = getPriorityScore(employee)
@@ -78,7 +76,6 @@ const priorityRaises = computed(() => {
       return {
         ...employee,
         gap,
-        suggestedRaise,
         retentionCost,
         roi,
         score,
