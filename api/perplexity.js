@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   }
 
   const jobPostPrompt =
-    "Sei un analista Compensation & Benefits. Cerca annunci di lavoro REALI in Italia per [role] a [location]. Se non trovi RAL per [location], espandi a Lombardia e poi a Italia, indicando il campo location_scope (Milano/Lombardia/Italia). Estrai i dati in formato JSON con un array 'items', ogni elemento deve includere: ral_min, ral_max, azienda, link_fonte, data_pubblicazione, location_scope. Usa SOLO numeri esplicitamente presenti nella fonte, NON stimare o inventare. Fornisci solo link_fonte reali (URL completi). Non citare link non legati a salari, JSON o documentazione. Se non trovi RAL verificabili, rispondi con JSON: {\"error\":\"no_verified_salary\"}."
+    "Trova 5 annunci di lavoro ATTIVI su LinkedIn o Indeed per [role] a [location] che riportino esplicitamente la RAL o un range salariale nel testo. Non fornire siti di medie salariali o calcolatori. Voglio il link diretto all'annuncio e la cifra indicata. Se non ne trovi, cerca tra gli annunci pubblicati negli ultimi 30 giorni. Rispondi SOLO con JSON: {\"items\":[{\"ral_min\":number,\"ral_max\":number,\"azienda\":string,\"link_fonte\":string,\"data_pubblicazione\":string,\"location_scope\":string}]}. Se non trovi annunci con RAL verificabile, rispondi con JSON: {\"error\":\"no_verified_salary\"}."
       .replace('[role]', role)
       .replace('[location]', location)
 
