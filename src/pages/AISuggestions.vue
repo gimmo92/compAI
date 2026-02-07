@@ -15,7 +15,6 @@
             <th>Dipendente</th>
             <th>Punteggio performance</th>
             <th>Gap vs Mercato</th>
-            <th>Suggerimento AI</th>
             <th>ROI di Retention</th>
             <th>Rischio</th>
             <th></th>
@@ -32,9 +31,6 @@
             </td>
             <td>
               <span :class="row.gapClass">{{ formatCurrency(row.gap) }}</span>
-            </td>
-            <td>
-              +{{ formatCurrency(row.suggestedRaise) }} per raggiungere il mediano
             </td>
             <td>
               <div class="roi">{{ formatCurrency(row.roi) }}</div>
