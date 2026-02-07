@@ -120,7 +120,7 @@ export default async function handler(req, res) {
 
     const fallbackCitations = Array.from(
       new Set(serperResults.map((item) => item?.link).filter(Boolean))
-    ).filter(isRelevantCitation)
+    )
 
     const items = serperResults
       .map((item) => {
