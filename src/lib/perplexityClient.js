@@ -69,7 +69,8 @@ const normalizeItems = (parsed) => {
 
 export const requestPerplexitySalary = async ({ role, location }) => {
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 30000)
+  const timeoutMs = 60000
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   let response
   try {
@@ -81,7 +82,7 @@ export const requestPerplexitySalary = async ({ role, location }) => {
     })
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new Error('Timeout Serper (30s)')
+      throw new Error(`Timeout Serper (${Math.round(timeoutMs / 1000)}s)`)
     }
     throw error
   } finally {
