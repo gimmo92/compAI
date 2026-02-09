@@ -16,10 +16,59 @@ export default async function handler(req, res) {
   const roleTerm = String(role).trim()
   const locationTerm = String(location).trim()
   console.log('[serper] request:', { role: roleTerm, location: locationTerm })
-  const extraRoleTerms =
-    roleTerm.toLowerCase() === 'hr'
-      ? ['HR', 'Human Resources', 'HR Manager', 'HR Specialist']
-      : []
+  const normalizeRole = (value) =>
+    String(value || '')
+      .toLowerCase()
+      .replace(/&/g, 'and')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+  const buildRoleAliases = (value) => {
+    const normalized = normalizeRole(value)
+    const aliases = new Set()
+    const aliasMap = {
+      'data analyst': ['Data Analytics Analyst', 'Analytics Analyst'],
+      'compensation and benefits specialist': [
+        'C&B Specialist',
+        'Compensation & Benefits Specialist',
+        'Comp & Ben Specialist'
+      ],
+      'software engineer': ['Software Developer', 'SWE'],
+      'product manager': ['PM'],
+      'ux designer': ['UX/UI Designer', 'User Experience Designer'],
+      'payroll specialist': ['Payroll Analyst'],
+      'talent acquisition lead': ['TA Lead', 'Talent Acquisition Manager']
+    }
+
+    if (normalized === 'hr') {
+      aliases.add('HR')
+      aliases.add('Human Resources')
+      aliases.add('HR Manager')
+      aliases.add('HR Specialist')
+      return Array.from(aliases)
+    }
+
+    const hasBusinessPartner = normalized.includes('business partner')
+    const isHrRole = /\bhr\b/.test(normalized) || normalized.includes('human resources')
+    if (hasBusinessPartner && isHrRole) {
+      aliases.add('HRBP')
+      aliases.add('HR BP')
+    }
+
+    if (normalized === 'hrbp') {
+      aliases.add('HR Business Partner')
+      aliases.add('Human Resources Business Partner')
+    }
+
+    if (aliasMap[normalized]) {
+      aliasMap[normalized].forEach((alias) => aliases.add(alias))
+    }
+
+    return Array.from(aliases)
+  }
+
+  const extraRoleTerms = buildRoleAliases(roleTerm)
 
   const buildSalaryQueries = () => {
     const keywordGroup =
