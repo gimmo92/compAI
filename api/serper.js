@@ -87,6 +87,30 @@ export default async function handler(req, res) {
     return Number.isFinite(number) ? number * multiplier : NaN
   }
 
+  const extractJson = (value) => {
+    if (!value) return null
+    const match = String(value).match(/\[[\s\S]*\]|\{[\s\S]*\}/)
+    return match ? match[0] : null
+  }
+
+  const hasNumberMatch = (text, value) => {
+    if (!text || !Number.isFinite(value)) return false
+    const raw = String(text)
+    const normalizedValue = Math.round(value)
+    const thousands = Math.round(normalizedValue / 1000)
+    const candidates = [
+      String(normalizedValue),
+      normalizedValue.toLocaleString('it-IT'),
+      normalizedValue.toLocaleString('en-US'),
+      `${thousands}k`,
+      `${thousands} k`
+    ]
+    return candidates.some((candidate) => {
+      const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      return new RegExp(`\\b${escaped}\\b`, 'i').test(raw)
+    })
+  }
+
   const parseSalaryRange = (value) => {
     if (!value) return null
     const text = String(value)
@@ -110,6 +134,49 @@ export default async function handler(req, res) {
     }
 
     return null
+  }
+
+  const llmExtractRanges = async (entries) => {
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey || !entries?.length) return []
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+    const prompt =
+      'Extract salary ranges from the snippets below. Return only explicit ranges found in the text. Never infer or estimate.' +
+      ' Output a JSON array of objects: { "url": "...", "min": number, "max": number }. If none, return [] only.'
+
+    const payload = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            { text: JSON.stringify(entries) }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0
+      }
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      }
+    )
+
+    if (!response.ok) return []
+    const data = await response.json().catch(() => null)
+    const content = data?.candidates?.[0]?.content?.parts?.map((part) => part?.text || '').join('\n')
+    const jsonText = extractJson(content)
+    if (!jsonText) return []
+    const parsed = JSON.parse(jsonText)
+    return Array.isArray(parsed) ? parsed : []
   }
 
   const normalizeRange = (min, max) => {
@@ -193,6 +260,49 @@ export default async function handler(req, res) {
     if (!items.length) {
       serperResults = await fetchSerperResults(buildFallbackQueries(), 10).catch(() => [])
       items = collectItems(serperResults)
+    }
+
+    if (!items.length) {
+      const llmEntries = Array.from(
+        new Map(
+          serperResults
+            .filter((item) => isRelevantCitation(item?.link))
+            .map((item) => [
+              item.link,
+              {
+                url: item.link,
+                text: `${item?.title || ''} ${item?.snippet || ''}`.trim()
+              }
+            ])
+        ).values()
+      ).slice(0, 12)
+
+      const llmResults = await llmExtractRanges(llmEntries).catch(() => [])
+      const llmItems = llmResults
+        .map((item) => {
+          const min = toNumber(item?.min)
+          const max = toNumber(item?.max)
+          const normalized = normalizeRange(min, max)
+          if (!normalized) return null
+          const source = llmEntries.find((entry) => entry.url === item?.url)
+          if (!source) return null
+          if (!hasNumberMatch(source.text, normalized.min) && !hasNumberMatch(source.text, normalized.max)) {
+            return null
+          }
+          return {
+            ral_min: normalized.min,
+            ral_max: normalized.max,
+            azienda: '',
+            link_fonte: item?.url || '',
+            data_pubblicazione: '',
+            location_scope: location
+          }
+        })
+        .filter((item) => item && isRelevantCitation(item.link_fonte))
+
+      if (llmItems.length) {
+        items = llmItems
+      }
     }
 
     if (!items.length) {
