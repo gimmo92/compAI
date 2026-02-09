@@ -6,16 +6,15 @@ export default async function handler(req, res) {
     return
   }
 
-  const { role, location } = req.body || {}
-  if (!role || !location) {
-    res.status(400).json({ error: 'Missing role or location' })
+  const { role } = req.body || {}
+  if (!role) {
+    res.status(400).json({ error: 'Missing role' })
     return
   }
 
   const serperApiKey = process.env.SERPER_API_KEY
   const roleTerm = String(role).trim()
-  const locationTerm = String(location).trim()
-  console.log('[serper] request:', { role: roleTerm, location: locationTerm })
+  console.log('[serper] request:', { role: roleTerm })
   const normalizeRole = (value) =>
     String(value || '')
       .toLowerCase()
@@ -91,12 +90,10 @@ export default async function handler(req, res) {
       .map((term) => `"${term}"`)
       .join(' OR ')
     const roleQuery = roleGroup ? `(${roleGroup})` : `"${roleTerm}"`
-    const locationQuery = `"${locationTerm}"`
-
     return [
-      `site:linkedin.com/jobs/view ${roleQuery} ${locationQuery} ${keywordGroup}`,
-      `site:indeed.com/viewjob ${roleQuery} ${locationQuery} ${keywordGroup}`,
-      `site:indeed.com/job ${roleQuery} ${locationQuery} ${keywordGroup}`
+      `site:it.linkedin.com/jobs/view ${roleQuery} ${keywordGroup}`,
+      `site:it.indeed.com/viewjob ${roleQuery} ${keywordGroup}`,
+      `site:it.indeed.com/job ${roleQuery} ${keywordGroup}`
     ]
   }
 
@@ -105,12 +102,10 @@ export default async function handler(req, res) {
       .map((term) => `"${term}"`)
       .join(' OR ')
     const roleQuery = roleGroup ? `(${roleGroup})` : `"${roleTerm}"`
-    const locationQuery = `"${locationTerm}"`
-
     return [
-      `site:linkedin.com/jobs/view ${roleQuery} ${locationQuery}`,
-      `site:indeed.com/viewjob ${roleQuery} ${locationQuery}`,
-      `site:indeed.com/job ${roleQuery} ${locationQuery}`
+      `site:it.linkedin.com/jobs/view ${roleQuery}`,
+      `site:it.indeed.com/viewjob ${roleQuery}`,
+      `site:it.indeed.com/job ${roleQuery}`
     ]
   }
 
@@ -403,7 +398,7 @@ export default async function handler(req, res) {
           title: source?.title || '',
           link_fonte: item?.url || '',
           data_pubblicazione: '',
-          location_scope: location
+          location_scope: ''
         }
       })
       .filter((item) => item && isRelevantCitation(item.link_fonte))
