@@ -347,19 +347,23 @@ const goBack = () => {
   router.push({ name: 'ai-suggestions' })
 }
 
-watch(employee, () => {
-  benchmarkError.value = ''
-  if (!employee.value) {
-    benchmarkData.value = null
-    return
-  }
-  try {
-    const stored = localStorage.getItem(`${storagePrefix}${employee.value.id}`)
-    benchmarkData.value = stored ? JSON.parse(stored) : null
-  } catch {
-    benchmarkData.value = null
-  }
-})
+watch(
+  employee,
+  () => {
+    benchmarkError.value = ''
+    if (!employee.value) {
+      benchmarkData.value = null
+      return
+    }
+    try {
+      const stored = localStorage.getItem(`${storagePrefix}${employee.value.id}`)
+      benchmarkData.value = stored ? JSON.parse(stored) : null
+    } catch {
+      benchmarkData.value = null
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
