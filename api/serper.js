@@ -20,27 +20,19 @@ export default async function handler(req, res) {
       ? ['HR', 'Human Resources', 'HR Manager', 'HR Specialist']
       : []
 
-  const buildStrictQueries = () => [
-    `site:linkedin.com/jobs/view "${roleTerm}" "${locationTerm}" "RAL" "€"`,
-    `site:indeed.com/viewjob "${roleTerm}" "${locationTerm}" "RAL" "€"`,
-    `site:indeed.com/job "${roleTerm}" "${locationTerm}" "RAL" "€"`
-  ]
-  const buildFallbackQueries = () => [
-    `site:linkedin.com/jobs/view ${roleTerm} ${locationTerm}`,
-    `site:indeed.com/viewjob ${roleTerm} ${locationTerm}`,
-    `site:indeed.com/job ${roleTerm} ${locationTerm}`,
-    `site:linkedin.com/jobs/view "${roleTerm}"`,
-    `site:indeed.com/viewjob "${roleTerm}"`,
-    `site:indeed.com/job "${roleTerm}"`,
-    `site:linkedin.com/jobs/view ${roleTerm} ${locationTerm} stipendio`,
-    `site:indeed.com/viewjob ${roleTerm} ${locationTerm} stipendio`,
-    `site:indeed.com/job ${roleTerm} ${locationTerm} stipendio`,
-    ...extraRoleTerms.flatMap((term) => [
-      `site:linkedin.com/jobs/view "${term}" "${locationTerm}"`,
-      `site:indeed.com/viewjob "${term}" "${locationTerm}"`,
-      `site:indeed.com/job "${term}" "${locationTerm}"`
-    ])
-  ]
+  const buildSalaryQueries = () => {
+    const keywords = ['RAL', 'retribuzione', 'stipendio', 'annua', 'lordo', '€', 'EUR']
+    const makeQueries = (term) =>
+      keywords.flatMap((keyword) => [
+        `site:linkedin.com/jobs/view "${term}" "${locationTerm}" "${keyword}"`,
+        `site:indeed.com/viewjob "${term}" "${locationTerm}" "${keyword}"`,
+        `site:indeed.com/job "${term}" "${locationTerm}" "${keyword}"`
+      ])
+    return [
+      ...makeQueries(roleTerm),
+      ...extraRoleTerms.flatMap((term) => makeQueries(term))
+    ]
+  }
 
   const toNumber = (value) => {
     if (value === null || value === undefined) return NaN
@@ -151,18 +143,11 @@ export default async function handler(req, res) {
       return
     }
 
-    let serperResults = await fetchSerperResults(buildStrictQueries(), 6).catch(() => [])
-    if (!serperResults.length) {
-      serperResults = await fetchSerperResults(buildFallbackQueries(), 6).catch(() => [])
-    }
+    const serperResults = await fetchSerperResults(buildSalaryQueries(), 8).catch(() => [])
     if (!serperResults.length) {
       res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
       return
     }
-
-    const fallbackCitations = Array.from(
-      new Set(serperResults.map((item) => item?.link).filter(Boolean))
-    )
 
     const items = serperResults
       .map((item) => {
@@ -182,9 +167,7 @@ export default async function handler(req, res) {
       .filter((item) => item && isRelevantCitation(item.link_fonte))
 
     if (!items.length) {
-      res
-        .status(200)
-        .json({ text: '{"error":"no_verified_salary"}', citations: fallbackCitations })
+      res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
       return
     }
 
