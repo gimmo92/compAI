@@ -192,29 +192,7 @@ const formatCurrency = (value) => {
   }).format(value)
 }
 
-const cacheKeyFor = (name, location, years) => {
-  return `role-benchmark:${name.toLowerCase()}:${location.toLowerCase()}:${years}`
-}
-
-const loadCachedResult = (key) => {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed || !Number.isFinite(parsed.min) || !Number.isFinite(parsed.max)) return null
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-const saveCachedResult = (key, payload) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(payload))
-  } catch {
-    // ignore storage failures
-  }
-}
+const ALWAYS_FETCH = true
 
 const confirmRole = async () => {
   error.value = ''
@@ -244,19 +222,12 @@ const confirmRole = async () => {
       throw parseError
     }
     result.value = parsed
-    const key = cacheKeyFor(name, city.value.trim(), seniority.value)
-    saveCachedResult(key, parsed)
   } catch (err) {
     const message = err?.message || 'Errore sconosciuto'
-    const key = cacheKeyFor(name, city.value.trim(), seniority.value)
-    const cached = loadCachedResult(key)
-    if (cached) {
-      result.value = cached
-      error.value = `Dati live non disponibili: ${message}. Mostrati gli ultimi dati verificati.`
-    } else {
-      error.value = `Impossibile ottenere dati verificabili da Serper: ${message}.`
-      result.value = null
-    }
+    error.value = ALWAYS_FETCH
+      ? `Impossibile ottenere dati verificabili da Serper: ${message}.`
+      : `Dati live non disponibili: ${message}.`
+    result.value = null
   } finally {
     loading.value = false
   }
