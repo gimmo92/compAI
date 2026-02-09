@@ -110,6 +110,24 @@ export default async function handler(req, res) {
     return { min: normalizedMin, max: normalizedMax }
   }
 
+  const normalizeText = (value) =>
+    String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+  const isCompanyMatch = (text, company) => {
+    if (!text || !company) return false
+    const normalizedText = normalizeText(text)
+    const tokens = normalizeText(company)
+      .split(' ')
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 2)
+    if (!tokens.length) return false
+    return tokens.every((token) => normalizedText.includes(token))
+  }
+
   const isRelevantCitation = (value) => {
     if (!value) return false
     const url = String(value).toLowerCase()
@@ -231,6 +249,11 @@ export default async function handler(req, res) {
       new Map(
         serperResults
           .filter((item) => isRelevantCitation(item?.link))
+          .filter((item) => {
+            const company = item?.__company || ''
+            const haystack = `${item?.title || ''} ${item?.snippet || ''}`
+            return isCompanyMatch(haystack, company)
+          })
           .map((item) => {
             const title = item?.title || ''
             return [
