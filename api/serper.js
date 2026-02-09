@@ -223,29 +223,41 @@ export default async function handler(req, res) {
 
   const fetchSerperResults = async (queries, num = 10) => {
     if (!serperApiKey) return []
-    const results = await Promise.all(
+    const results = await Promise.allSettled(
       queries.map((query) =>
-        axios.post(
-          'https://google.serper.dev/search',
-          { q: query, num, gl: 'it', hl: 'it' },
-          {
-            headers: {
-              'X-API-KEY': serperApiKey,
-              'Content-Type': 'application/json'
-            },
-            timeout: 6000
-          }
-        ).then((response) => {
-          console.log('[serper] query:', query)
-          console.log('[serper] raw response:', response?.data)
-          return response
-        })
+        axios
+          .post(
+            'https://google.serper.dev/search',
+            { q: query, num, gl: 'it', hl: 'it' },
+            {
+              headers: {
+                'X-API-KEY': serperApiKey,
+                'Content-Type': 'application/json'
+              },
+              timeout: 6000
+            }
+          )
+          .then((response) => {
+            console.log('[serper] query:', query)
+            console.log('[serper] raw response:', response?.data)
+            return response
+          })
       )
     )
-    return results.flatMap((response) => {
-      const organic = response?.data?.organic || []
-      return organic
-    })
+
+    const fulfilled = results
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value)
+
+    const rejected = results.filter((result) => result.status === 'rejected')
+    if (rejected.length) {
+      console.log('[serper] failed queries:', rejected.length)
+      rejected.slice(0, 3).forEach((result) => {
+        console.log('[serper] query error:', String(result.reason))
+      })
+    }
+
+    return fulfilled.flatMap((response) => response?.data?.organic || [])
   }
 
   try {
