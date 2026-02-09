@@ -15,6 +15,7 @@ export default async function handler(req, res) {
   const serperApiKey = process.env.SERPER_API_KEY
   const roleTerm = String(role).trim()
   const locationTerm = String(location).trim()
+  console.log('[serper] request:', { role: roleTerm, location: locationTerm })
   const extraRoleTerms =
     roleTerm.toLowerCase() === 'hr'
       ? ['HR', 'Human Resources', 'HR Manager', 'HR Specialist']
@@ -138,14 +139,15 @@ export default async function handler(req, res) {
 
   const llmExtractRanges = async (entries) => {
     const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey || !entries?.length) {
+    if (!apiKey) {
       if (!apiKey) {
         console.log('[gemini] GEMINI_API_KEY missing, skip LLM fallback')
       }
       return []
     }
+    const safeEntries = Array.isArray(entries) ? entries : []
     const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
-    console.log('[gemini] calling model:', model, 'entries:', entries.length)
+    console.log('[gemini] calling model:', model, 'entries:', safeEntries.length)
     const prompt =
       'Extract salary ranges from the snippets below. Return only explicit ranges found in the text. Never infer or estimate.' +
       ' Output a JSON array of objects: { "url": "...", "min": number, "max": number }. If none, return [] only.'
@@ -156,7 +158,7 @@ export default async function handler(req, res) {
           role: 'user',
           parts: [
             { text: prompt },
-            { text: JSON.stringify(entries) }
+            { text: JSON.stringify(safeEntries) }
           ]
         }
       ],
@@ -249,6 +251,7 @@ export default async function handler(req, res) {
     if (!serperResults.length) {
       serperResults = await fetchSerperResults(buildFallbackQueries(), 10).catch(() => [])
     }
+    console.log('[serper] results:', serperResults.length)
 
     const llmEntries = Array.from(
       new Map(
