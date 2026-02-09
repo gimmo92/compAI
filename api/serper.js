@@ -69,6 +69,20 @@ export default async function handler(req, res) {
   }
 
   const extraRoleTerms = buildRoleAliases(roleTerm)
+  const allRoleTerms = [roleTerm, ...extraRoleTerms]
+
+  const isRoleMatch = (text, terms) => {
+    if (!text) return false
+    const normalizedText = normalizeRole(text)
+    const candidates = Array.isArray(terms) ? terms : []
+    return candidates.some((term) => {
+      const normalizedTerm = normalizeRole(term)
+      if (!normalizedTerm) return false
+      const tokens = normalizedTerm.split(' ').filter((token) => token.length >= 2)
+      if (!tokens.length) return false
+      return tokens.every((token) => normalizedText.includes(token))
+    })
+  }
 
   const buildSalaryQueries = () => {
     const keywordGroup =
@@ -337,6 +351,9 @@ export default async function handler(req, res) {
       new Map(
         serperResults
           .filter((item) => isRelevantCitation(item?.link))
+          .filter((item) =>
+            isRoleMatch(`${item?.title || ''} ${item?.snippet || ''}`.trim(), allRoleTerms)
+          )
           .map((item) => [
             item.link,
             {
