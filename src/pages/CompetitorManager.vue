@@ -33,7 +33,10 @@
       <h3>Competitor salvati</h3>
       <p v-if="!competitors.length" class="empty">Nessun competitor salvato.</p>
       <ul v-else class="list">
-        <li v-for="name in competitors" :key="name">{{ name }}</li>
+        <li v-for="name in competitors" :key="name" class="list-row">
+          <span>{{ name }}</span>
+          <button class="remove-btn" type="button" @click="removeCompetitor(name)">×</button>
+        </li>
       </ul>
       <div class="list-actions">
         <button
@@ -127,6 +130,14 @@ const addCompetitor = () => {
   stored.value = [...stored.value, value]
   saveCompetitors(stored.value)
   newName.value = ''
+}
+
+const removeCompetitor = (name) => {
+  stored.value = stored.value.filter((item) => item.toLowerCase() !== name.toLowerCase())
+  saveCompetitors(stored.value)
+  benchmarks.value = benchmarks.value.filter(
+    (item) => item.competitor?.toLowerCase() !== name.toLowerCase()
+  )
 }
 
 const loadBenchmarks = async () => {
@@ -230,6 +241,21 @@ const loadBenchmarks = async () => {
   margin: 10px 0 0;
   padding-left: 20px;
   color: var(--bs-dark);
+}
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.remove-btn {
+  border: none;
+  background: transparent;
+  color: #b91c1c;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
 }
 .list-actions {
   margin-top: 12px;
