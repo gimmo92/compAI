@@ -94,7 +94,9 @@ export default async function handler(req, res) {
     const patterns = [
       /(\d[\d.,]*\s*[kKmM]?)\s*(?:-|–|to|a)\s*(\d[\d.,]*\s*[kKmM]?)\s*(?:€|eur|euro)/i,
       /(?:€|eur|euro)\s*(\d[\d.,]*\s*[kKmM]?)(?:\s*(?:-|–|to|a)\s*(\d[\d.,]*\s*[kKmM]?))?/i,
-      /(?:ral|retribuzion|stipendio|salary)\s*[:=]?\s*(\d[\d.,]*\s*[kKmM]?)(?:\s*(?:-|–|to|a)\s*(\d[\d.,]*\s*[kKmM]?))?/i
+      /(?:ral|retribuzion|stipendio|salary)\s*[:=]?\s*(\d[\d.,]*\s*[kKmM]?)(?:\s*(?:-|–|to|a)\s*(\d[\d.,]*\s*[kKmM]?))?/i,
+      /(?:tra|fra|compresa?\s+tra|da)\s*(\d[\d.,]*\s*[kKmM]?)\s*(?:e|a)\s*(\d[\d.,]*\s*[kKmM]?)(?:\s*(?:€|eur|euro))?/i,
+      /(\d[\d.,]*\s*[kKmM]?)\s*(?:-|–)\s*(\d[\d.,]*\s*[kKmM]?)(?:\s*(?:annui|annua|annuo|lordo|lordi))?/i
     ]
 
     for (const pattern of patterns) {
