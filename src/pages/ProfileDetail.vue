@@ -188,7 +188,12 @@ const chartOptions = computed(() => ({
   legend: { position: 'top' }
 }))
 
-const activeSources = computed(() => activeBenchmark.value?.sources || [])
+const activeSources = computed(() => {
+  const sources = activeBenchmark.value?.sources || []
+  return sources.map((source) =>
+    typeof source === 'string' ? { url: source, min: null, max: null } : source
+  )
+})
 
 const normalizeUrl = (value) => {
   if (!value) return ''
@@ -271,24 +276,30 @@ const sourceDetails = computed(() => {
   }
 
   const expanded = sources.flatMap((item) => {
-    const normalized = normalizeUrl(item)
+    const normalized = normalizeUrl(item.url)
     if (/^https?:\/\//i.test(normalized)) {
       const host = getHost(normalized)
       const matchedKey = Object.keys(labelMap).find((key) => host.includes(key))
       const label = matchedKey ? labelMap[matchedKey] : host || 'Fonte'
       const icon = iconMap[label] || 'FX'
-      return [{ url: normalized, label, icon }]
+      return [{ url: normalized, label, icon, min: item.min, max: item.max }]
     }
 
     const query = normalized
     return ['LinkedIn', 'Indeed', 'Glassdoor'].map((label) => ({
       url: buildSearchUrl(label, query),
       label,
-      icon: iconMap[label] || 'FX'
+      icon: iconMap[label] || 'FX',
+      min: item.min,
+      max: item.max
     }))
   })
 
   return expanded.map((entry, index) => {
+    if (Number.isFinite(entry.min) && Number.isFinite(entry.max)) {
+      const trend = entry.min >= med ? 'up' : 'down'
+      return { ...entry, trend }
+    }
     const offset = (index + 1) * 1200
     const min = Math.max(0, med - 4500 + offset)
     const max = med + 4500 + offset

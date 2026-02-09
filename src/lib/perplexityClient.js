@@ -55,6 +55,7 @@ const normalizeRange = (min, max) => {
     normalizedMax *= 1000
   }
   if (normalizedMax < 15000) return null
+  if (normalizedMax > 300000) return null
   return { min: normalizedMin, max: normalizedMax }
 }
 
@@ -185,9 +186,21 @@ export const parseSalaryBenchmark = (text, options = {}) => {
   const med = Math.round(
     salaries.reduce((sum, item) => sum + (item.min + item.max) / 2, 0) / salaries.length
   )
-  const sources = Array.from(
-    new Set([...salaries.map((item) => item.link).filter(Boolean), ...citations.filter(Boolean)])
-  )
+  const sourceMap = new Map()
+  salaries.forEach((item) => {
+    if (!item.link) return
+    sourceMap.set(item.link, {
+      url: item.link,
+      min: item.min,
+      max: item.max
+    })
+  })
+  citations.filter(Boolean).forEach((link) => {
+    if (!sourceMap.has(link)) {
+      sourceMap.set(link, { url: link, min: null, max: null })
+    }
+  })
+  const sources = Array.from(sourceMap.values())
 
   if (requireSources && !sources.length) {
     throw new Error('Fonti non verificabili')

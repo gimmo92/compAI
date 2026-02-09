@@ -71,15 +71,31 @@ export default async function handler(req, res) {
     return Number.isFinite(number) ? number * multiplier : NaN
   }
 
-  const parseRange = (value) => {
+  const parseSalaryRange = (value) => {
     if (!value) return null
-    const matches = String(value).match(/(\d[\d.,]*\s*[kKmM]?)/g)
-    if (!matches || !matches.length) return null
-    const numbers = matches.map((entry) => toNumber(entry)).filter(Number.isFinite)
-    if (!numbers.length) return null
-    const min = Math.min(...numbers)
-    const max = Math.max(...numbers)
-    return { min, max }
+    const text = String(value)
+    const hasSalaryKeyword = /(?:€|eur|euro|ral|retribuzion|stipendio|salary|annui|lordi)/i.test(
+      text
+    )
+    if (!hasSalaryKeyword) return null
+
+    const patterns = [
+      /(\d[\d.,]*\s*[kKmM]?)\s*(?:-|–|to|a)\s*(\d[\d.,]*\s*[kKmM]?)\s*(?:€|eur|euro)/i,
+      /(?:€|eur|euro)\s*(\d[\d.,]*\s*[kKmM]?)(?:\s*(?:-|–|to|a)\s*(\d[\d.,]*\s*[kKmM]?))?/i,
+      /(?:ral|retribuzion|stipendio|salary)\s*[:=]?\s*(\d[\d.,]*\s*[kKmM]?)(?:\s*(?:-|–|to|a)\s*(\d[\d.,]*\s*[kKmM]?))?/i
+    ]
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (!match) continue
+      const min = toNumber(match[1])
+      const max = toNumber(match[2] ?? match[1])
+      if (Number.isFinite(min) && Number.isFinite(max)) {
+        return { min, max }
+      }
+    }
+
+    return null
   }
 
   const normalizeRange = (min, max) => {
@@ -94,6 +110,7 @@ export default async function handler(req, res) {
       normalizedMax *= 1000
     }
     if (normalizedMax < 15000) return null
+    if (normalizedMax > 300000) return null
     return { min: normalizedMin, max: normalizedMax }
   }
 
@@ -150,7 +167,7 @@ export default async function handler(req, res) {
     const items = serperResults
       .map((item) => {
         const text = `${item?.title || ''} ${item?.snippet || ''}`
-        const range = parseRange(text)
+        const range = parseSalaryRange(text)
         const normalized = range ? normalizeRange(range.min, range.max) : null
         if (!normalized) return null
         return {

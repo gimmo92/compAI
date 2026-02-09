@@ -60,17 +60,20 @@
             :series="chartSeries"
           />
         </div>
-        <div v-if="result.sources?.length" class="result-sources">
+        <div v-if="normalizedSources.length" class="result-sources">
           <div class="sources-title">Fonti suggerite</div>
           <a
-            v-for="source in result.sources"
-            :key="source"
+            v-for="source in normalizedSources"
+            :key="source.url"
             class="source-link"
-            :href="source"
+            :href="source.url"
             target="_blank"
             rel="noreferrer"
           >
-            {{ source }}
+            {{ source.url }}
+            <span v-if="source.min && source.max" class="source-range">
+              · RAL {{ formatCurrency(source.min) }} - {{ formatCurrency(source.max) }}
+            </span>
           </a>
         </div>
       </div>
@@ -104,6 +107,12 @@ const loading = ref(false)
 const error = ref('')
 const result = ref(null)
 const searchedSources = ref([])
+const normalizedSources = computed(() => {
+  if (!result.value?.sources) return []
+  return result.value.sources.map((source) =>
+    typeof source === 'string' ? { url: source, min: null, max: null } : source
+  )
+})
 
 const chartKey = computed(() => {
   if (!result.value) return 'empty'
@@ -405,6 +414,10 @@ const confirmRole = async () => {
   text-decoration: none;
   font-size: 0.9rem;
   word-break: break-word;
+}
+.source-range {
+  color: var(--bs-gray-700);
+  font-weight: 500;
 }
 .source-link:hover {
   text-decoration: underline;
