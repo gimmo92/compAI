@@ -228,7 +228,7 @@ const confirmRole = async () => {
   loading.value = true
   try {
     const response = await requestPerplexitySalary({
-      role: `${name} (${seniority.value} anni)`,
+      role: name,
       location: city.value
     })
     let parsed
