@@ -251,8 +251,8 @@ export default async function handler(req, res) {
           .filter((item) => isRelevantCitation(item?.link))
           .filter((item) => {
             const company = item?.__company || ''
-            const haystack = `${item?.title || ''} ${item?.snippet || ''}`
-            return isCompanyMatch(haystack, company)
+            const title = item?.title || ''
+            return isCompanyMatch(title, company)
           })
           .map((item) => {
             const title = item?.title || ''
