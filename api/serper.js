@@ -34,6 +34,18 @@ export default async function handler(req, res) {
     ]
   }
 
+  const buildFallbackQueries = () => {
+    const makeQueries = (term) => [
+      `site:linkedin.com/jobs/view "${term}" "${locationTerm}"`,
+      `site:indeed.com/viewjob "${term}" "${locationTerm}"`,
+      `site:indeed.com/job "${term}" "${locationTerm}"`
+    ]
+    return [
+      ...makeQueries(roleTerm),
+      ...extraRoleTerms.flatMap((term) => makeQueries(term))
+    ]
+  }
+
   const toNumber = (value) => {
     if (value === null || value === undefined) return NaN
     const text = String(value).trim()
@@ -63,15 +75,9 @@ export default async function handler(req, res) {
     return Number.isFinite(number) ? number * multiplier : NaN
   }
 
-  const hasSalaryKeywordText = (value) => {
-    if (!value) return false
-    return /(?:€|eur|euro|ral|retribuzion|stipendio|salary|annui|lordi)/i.test(String(value))
-  }
-
   const parseSalaryRange = (value) => {
     if (!value) return null
     const text = String(value)
-    if (!hasSalaryKeywordText(text)) return null
 
     const patterns = [
       /(\d[\d.,]*\s*[kKmM]?)\s*(?:-|–|to|a)\s*(\d[\d.,]*\s*[kKmM]?)\s*(?:€|eur|euro)/i,
@@ -145,43 +151,34 @@ export default async function handler(req, res) {
       return
     }
 
-    const serperResults = await fetchSerperResults(buildSalaryQueries(), 8).catch(() => [])
-    if (!serperResults.length) {
-      res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
-      return
-    }
+    const collectItems = (results) =>
+      results
+        .map((item) => {
+          const text = `${item?.title || ''} ${item?.snippet || ''}`
+          const range = parseSalaryRange(text)
+          const normalized = range ? normalizeRange(range.min, range.max) : null
+          if (!normalized) return null
+          return {
+            ral_min: normalized.min,
+            ral_max: normalized.max,
+            azienda: item?.title || '',
+            link_fonte: item?.link || '',
+            data_pubblicazione: '',
+            location_scope: location
+          }
+        })
+        .filter((item) => item && isRelevantCitation(item.link_fonte))
 
-    const items = serperResults
-      .map((item) => {
-        const text = `${item?.title || ''} ${item?.snippet || ''}`
-        const range = parseSalaryRange(text)
-        const normalized = range ? normalizeRange(range.min, range.max) : null
-        if (!normalized) return null
-        return {
-          ral_min: normalized.min,
-          ral_max: normalized.max,
-          azienda: item?.title || '',
-          link_fonte: item?.link || '',
-          data_pubblicazione: '',
-          location_scope: location
-        }
-      })
-      .filter((item) => item && isRelevantCitation(item.link_fonte))
+    let serperResults = await fetchSerperResults(buildSalaryQueries(), 8).catch(() => [])
+    let items = collectItems(serperResults)
 
     if (!items.length) {
-      const fallbackCitations = Array.from(
-        new Set(
-          serperResults
-            .filter((item) => {
-              if (!isRelevantCitation(item?.link)) return false
-              const text = `${item?.title || ''} ${item?.snippet || ''}`
-              return hasSalaryKeywordText(text)
-            })
-            .map((item) => item?.link)
-            .filter(Boolean)
-        )
-      )
-      res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: fallbackCitations })
+      serperResults = await fetchSerperResults(buildFallbackQueries(), 8).catch(() => [])
+      items = collectItems(serperResults)
+    }
+
+    if (!items.length) {
+      res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
       return
     }
 
