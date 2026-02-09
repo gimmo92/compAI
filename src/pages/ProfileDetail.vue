@@ -221,6 +221,7 @@ const chartKey = computed(() => {
 })
 
 const ALWAYS_FETCH = true
+const storagePrefix = 'profile-benchmark:'
 
 const buildSearchUrl = (label, query) => {
   const encoded = encodeURIComponent(query)
@@ -320,6 +321,11 @@ const updateBenchmark = async () => {
       sources: benchmark.sources
     }
     benchmarkData.value = nextBenchmark
+    try {
+      localStorage.setItem(`${storagePrefix}${employee.value.id}`, JSON.stringify(nextBenchmark))
+    } catch {
+      // ignore storage failures
+    }
   } catch (error) {
     const message = error?.message || 'Errore sconosciuto'
     benchmarkError.value = ALWAYS_FETCH
@@ -343,7 +349,16 @@ const goBack = () => {
 
 watch(employee, () => {
   benchmarkError.value = ''
-  benchmarkData.value = null
+  if (!employee.value) {
+    benchmarkData.value = null
+    return
+  }
+  try {
+    const stored = localStorage.getItem(`${storagePrefix}${employee.value.id}`)
+    benchmarkData.value = stored ? JSON.parse(stored) : null
+  } catch {
+    benchmarkData.value = null
+  }
 })
 </script>
 
