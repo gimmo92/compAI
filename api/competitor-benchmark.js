@@ -120,7 +120,7 @@ export default async function handler(req, res) {
 
   const fetchSerperResults = async (queries, num = 10) => {
     const results = await Promise.allSettled(
-      queries.map((query) =>
+      queries.map(({ company, query }) =>
         axios
           .post(
             'https://google.serper.dev/search',
@@ -136,7 +136,7 @@ export default async function handler(req, res) {
           .then((response) => {
             console.log('[competitor] query:', query)
             console.log('[competitor] raw response:', response?.data)
-            return response
+            return { company, data: response?.data }
           })
       )
     )
@@ -145,7 +145,12 @@ export default async function handler(req, res) {
       .filter((result) => result.status === 'fulfilled')
       .map((result) => result.value)
 
-    return fulfilled.flatMap((response) => response?.data?.organic || [])
+    return fulfilled.flatMap((entry) =>
+      (entry?.data?.organic || []).map((item) => ({
+        ...item,
+        __company: entry?.company || ''
+      }))
+    )
   }
 
   const llmExtractRanges = async (entries) => {
@@ -209,8 +214,14 @@ export default async function handler(req, res) {
     const limitedNames = names.slice(0, 6)
 
     const queries = limitedNames.flatMap((company) => [
-      `site:linkedin.com/jobs/view "${company}" "${locationTerm}" ${keywordGroup}`,
-      `site:indeed.com/viewjob "${company}" "${locationTerm}" ${keywordGroup}`
+      {
+        company,
+        query: `site:linkedin.com/jobs/view "${company}" "${locationTerm}" ${keywordGroup}`
+      },
+      {
+        company,
+        query: `site:indeed.com/viewjob "${company}" "${locationTerm}" ${keywordGroup}`
+      }
     ])
 
     const serperResults = await fetchSerperResults(queries, 10).catch(() => [])
@@ -222,17 +233,11 @@ export default async function handler(req, res) {
           .filter((item) => isRelevantCitation(item?.link))
           .map((item) => {
             const title = item?.title || ''
-            const company =
-              limitedNames.find((name) => title.toLowerCase().includes(name.toLowerCase())) ||
-              limitedNames.find((name) =>
-                String(item?.snippet || '').toLowerCase().includes(name.toLowerCase())
-              ) ||
-              ''
             return [
               item.link,
               {
                 url: item.link,
-                company,
+                company: item?.__company || '',
                 title,
                 text: `${title} ${item?.snippet || ''}`.trim()
               }
@@ -242,6 +247,7 @@ export default async function handler(req, res) {
     ).slice(0, 40)
 
     const llmResults = await llmExtractRanges(llmEntries).catch(() => [])
+    console.log('[competitor] gemini ranges:', llmResults.length)
     const items = llmResults
       .map((item) => {
         const minRaw = toNumber(item?.min)
@@ -283,6 +289,7 @@ export default async function handler(req, res) {
       })
       .filter((item) => item && isRelevantCitation(item.link))
 
+    console.log('[competitor] items:', items.length)
     res.status(200).json({ items })
   } catch (error) {
     const status = error?.response?.status || (error.code === 'ECONNABORTED' ? 504 : 500)
