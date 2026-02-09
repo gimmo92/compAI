@@ -148,7 +148,11 @@ export default async function handler(req, res) {
             },
             timeout: 6000
           }
-        )
+        ).then((response) => {
+          console.log('[serper] query:', query)
+          console.log('[serper] raw response:', response?.data)
+          return response
+        })
       )
     )
     return results.flatMap((response) => {
