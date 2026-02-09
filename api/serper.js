@@ -167,22 +167,29 @@ export default async function handler(req, res) {
       }
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      }
-    )
+    let response
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }
+      )
+    } catch (error) {
+      console.log('[gemini] fetch error:', String(error))
+      return []
+    }
 
     if (!response.ok) {
       console.log('[gemini] response not ok:', response.status)
       return []
     }
     const data = await response.json().catch(() => null)
+    console.log('[gemini] response ok')
     const content = data?.candidates?.[0]?.content?.parts?.map((part) => part?.text || '').join('\n')
     const jsonText = extractJson(content)
     if (!jsonText) return []
