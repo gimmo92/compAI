@@ -22,41 +22,33 @@ export default async function handler(req, res) {
       : []
 
   const buildSalaryQueries = () => {
-    const keywords = ['RAL', 'retribuzione', 'stipendio', 'annua', 'lordo', '€', 'EUR']
-    const makeQueries = (term) => [
-      ...keywords.flatMap((keyword) => [
-        `site:linkedin.com/jobs/view "${term}" "${locationTerm}" "${keyword}"`,
-        `site:indeed.com/viewjob "${term}" "${locationTerm}" "${keyword}"`,
-        `site:indeed.com/job "${term}" "${locationTerm}" "${keyword}"`,
-        `site:linkedin.com/jobs/view ${term} ${locationTerm} ${keyword}`,
-        `site:indeed.com/viewjob ${term} ${locationTerm} ${keyword}`,
-        `site:indeed.com/job ${term} ${locationTerm} ${keyword}`
-      ])
+    const keywordGroup =
+      '("RAL" OR "retribuzione" OR "stipendio" OR "annua" OR "lordo" OR "€" OR "EUR")'
+    const roleGroup = Array.from(new Set([roleTerm, ...extraRoleTerms]))
+      .map((term) => `"${term}"`)
+      .join(' OR ')
+    const roleQuery = roleGroup ? `(${roleGroup})` : `"${roleTerm}"`
+    const locationQuery = `"${locationTerm}"`
+
+    return [
+      `site:linkedin.com/jobs/view ${roleQuery} ${locationQuery} ${keywordGroup}`,
+      `site:indeed.com/viewjob ${roleQuery} ${locationQuery} ${keywordGroup}`,
+      `site:indeed.com/job ${roleQuery} ${locationQuery} ${keywordGroup}`
     ]
-    const queries = [
-      ...makeQueries(roleTerm),
-      ...extraRoleTerms.flatMap((term) => makeQueries(term))
-    ]
-    return Array.from(new Set(queries))
   }
 
   const buildFallbackQueries = () => {
-    const makeQueries = (term) => [
-      `site:linkedin.com/jobs/view "${term}" "${locationTerm}"`,
-      `site:indeed.com/viewjob "${term}" "${locationTerm}"`,
-      `site:indeed.com/job "${term}" "${locationTerm}"`,
-      `site:linkedin.com/jobs/view ${term} ${locationTerm}`,
-      `site:indeed.com/viewjob ${term} ${locationTerm}`,
-      `site:indeed.com/job ${term} ${locationTerm}`,
-      `site:linkedin.com/jobs/view "${term}"`,
-      `site:indeed.com/viewjob "${term}"`,
-      `site:indeed.com/job "${term}"`
+    const roleGroup = Array.from(new Set([roleTerm, ...extraRoleTerms]))
+      .map((term) => `"${term}"`)
+      .join(' OR ')
+    const roleQuery = roleGroup ? `(${roleGroup})` : `"${roleTerm}"`
+    const locationQuery = `"${locationTerm}"`
+
+    return [
+      `site:linkedin.com/jobs/view ${roleQuery} ${locationQuery}`,
+      `site:indeed.com/viewjob ${roleQuery} ${locationQuery}`,
+      `site:indeed.com/job ${roleQuery} ${locationQuery}`
     ]
-    const queries = [
-      ...makeQueries(roleTerm),
-      ...extraRoleTerms.flatMap((term) => makeQueries(term))
-    ]
-    return Array.from(new Set(queries))
   }
 
   const toNumber = (value) => {
@@ -284,7 +276,7 @@ export default async function handler(req, res) {
             }
           ])
       ).values()
-    ).slice(0, 12)
+    ).slice(0, 30)
 
     const llmResults = await llmExtractRanges(llmEntries).catch(() => [])
     const items = llmResults
