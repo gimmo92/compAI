@@ -63,13 +63,15 @@ export default async function handler(req, res) {
     return Number.isFinite(number) ? number * multiplier : NaN
   }
 
+  const hasSalaryKeywordText = (value) => {
+    if (!value) return false
+    return /(?:€|eur|euro|ral|retribuzion|stipendio|salary|annui|lordi)/i.test(String(value))
+  }
+
   const parseSalaryRange = (value) => {
     if (!value) return null
     const text = String(value)
-    const hasSalaryKeyword = /(?:€|eur|euro|ral|retribuzion|stipendio|salary|annui|lordi)/i.test(
-      text
-    )
-    if (!hasSalaryKeyword) return null
+    if (!hasSalaryKeywordText(text)) return null
 
     const patterns = [
       /(\d[\d.,]*\s*[kKmM]?)\s*(?:-|–|to|a)\s*(\d[\d.,]*\s*[kKmM]?)\s*(?:€|eur|euro)/i,
@@ -167,7 +169,19 @@ export default async function handler(req, res) {
       .filter((item) => item && isRelevantCitation(item.link_fonte))
 
     if (!items.length) {
-      res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
+      const fallbackCitations = Array.from(
+        new Set(
+          serperResults
+            .filter((item) => {
+              if (!isRelevantCitation(item?.link)) return false
+              const text = `${item?.title || ''} ${item?.snippet || ''}`
+              return hasSalaryKeywordText(text)
+            })
+            .map((item) => item?.link)
+            .filter(Boolean)
+        )
+      )
+      res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: fallbackCitations })
       return
     }
 
