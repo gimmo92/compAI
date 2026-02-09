@@ -22,28 +22,40 @@ export default async function handler(req, res) {
 
   const buildSalaryQueries = () => {
     const keywords = ['RAL', 'retribuzione', 'stipendio', 'annua', 'lordo', '€', 'EUR']
-    const makeQueries = (term) =>
-      keywords.flatMap((keyword) => [
+    const makeQueries = (term) => [
+      ...keywords.flatMap((keyword) => [
         `site:linkedin.com/jobs/view "${term}" "${locationTerm}" "${keyword}"`,
         `site:indeed.com/viewjob "${term}" "${locationTerm}" "${keyword}"`,
-        `site:indeed.com/job "${term}" "${locationTerm}" "${keyword}"`
+        `site:indeed.com/job "${term}" "${locationTerm}" "${keyword}"`,
+        `site:linkedin.com/jobs/view ${term} ${locationTerm} ${keyword}`,
+        `site:indeed.com/viewjob ${term} ${locationTerm} ${keyword}`,
+        `site:indeed.com/job ${term} ${locationTerm} ${keyword}`
       ])
-    return [
+    ]
+    const queries = [
       ...makeQueries(roleTerm),
       ...extraRoleTerms.flatMap((term) => makeQueries(term))
     ]
+    return Array.from(new Set(queries))
   }
 
   const buildFallbackQueries = () => {
     const makeQueries = (term) => [
       `site:linkedin.com/jobs/view "${term}" "${locationTerm}"`,
       `site:indeed.com/viewjob "${term}" "${locationTerm}"`,
-      `site:indeed.com/job "${term}" "${locationTerm}"`
+      `site:indeed.com/job "${term}" "${locationTerm}"`,
+      `site:linkedin.com/jobs/view ${term} ${locationTerm}`,
+      `site:indeed.com/viewjob ${term} ${locationTerm}`,
+      `site:indeed.com/job ${term} ${locationTerm}`,
+      `site:linkedin.com/jobs/view "${term}"`,
+      `site:indeed.com/viewjob "${term}"`,
+      `site:indeed.com/job "${term}"`
     ]
-    return [
+    const queries = [
       ...makeQueries(roleTerm),
       ...extraRoleTerms.flatMap((term) => makeQueries(term))
     ]
+    return Array.from(new Set(queries))
   }
 
   const toNumber = (value) => {
@@ -169,11 +181,11 @@ export default async function handler(req, res) {
         })
         .filter((item) => item && isRelevantCitation(item.link_fonte))
 
-    let serperResults = await fetchSerperResults(buildSalaryQueries(), 8).catch(() => [])
+    let serperResults = await fetchSerperResults(buildSalaryQueries(), 10).catch(() => [])
     let items = collectItems(serperResults)
 
     if (!items.length) {
-      serperResults = await fetchSerperResults(buildFallbackQueries(), 8).catch(() => [])
+      serperResults = await fetchSerperResults(buildFallbackQueries(), 10).catch(() => [])
       items = collectItems(serperResults)
     }
 
