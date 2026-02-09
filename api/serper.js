@@ -292,6 +292,7 @@ export default async function handler(req, res) {
             item.link,
             {
               url: item.link,
+              title: item?.title || '',
               text: `${item?.title || ''} ${item?.snippet || ''}`.trim()
             }
           ])
@@ -333,6 +334,7 @@ export default async function handler(req, res) {
           ral_min: normalized.min,
           ral_max: normalized.max,
           azienda: '',
+          title: source?.title || '',
           link_fonte: item?.url || '',
           data_pubblicazione: '',
           location_scope: location

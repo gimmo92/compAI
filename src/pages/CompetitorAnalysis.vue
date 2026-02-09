@@ -7,7 +7,15 @@
           Job post attivi a Milano con retribuzioni sopra i nostri benchmark.
         </p>
       </div>
-      <span class="chip">Talent intelligence</span>
+      <div class="header-actions">
+        <RouterLink class="secondary-btn" :to="{ name: 'competitor-add' }">
+          Add competitor
+        </RouterLink>
+        <RouterLink class="secondary-btn" :to="{ name: 'competitor-add' }">
+          Vedi competitor
+        </RouterLink>
+        <span class="chip">Talent intelligence</span>
+      </div>
     </div>
 
     <div class="competitor-section">
@@ -43,8 +51,27 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { employees, formatCurrency } from '../data/employees'
+
+const storageKey = 'competitors:list'
+const customCompetitors = ref([])
+
+const loadCustomCompetitors = () => {
+  try {
+    const raw = localStorage.getItem(storageKey)
+    const parsed = JSON.parse(raw || '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((name) => typeof name === 'string' && name.trim())
+  } catch {
+    return []
+  }
+}
+
+onMounted(() => {
+  customCompetitors.value = loadCustomCompetitors()
+})
 
 const competitorCompanies = computed(() => {
   const roles = Array.from(new Set(employees.map((item) => item.ruolo)))
@@ -55,7 +82,20 @@ const competitorCompanies = computed(() => {
     { name: 'NextPeople', industry: 'SaaS', city: 'Torino' }
   ]
 
-  return companies.map((company, companyIndex) => {
+  const custom = customCompetitors.value.map((name) => ({
+    name,
+    industry: 'Custom',
+    city: 'Milano'
+  }))
+
+  const allCompanies = [...custom, ...companies].reduce((acc, company) => {
+    if (!acc.some((item) => item.name.toLowerCase() === company.name.toLowerCase())) {
+      acc.push(company)
+    }
+    return acc
+  }, [])
+
+  return allCompanies.map((company, companyIndex) => {
     const jobs = roles.slice(0, 3).map((role, roleIndex) => {
       const base = Math.max(
         ...employees
@@ -87,6 +127,21 @@ const competitorCompanies = computed(() => {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+}
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.secondary-btn {
+  border: 1px solid var(--bs-gray-200);
+  background: var(--bs-white);
+  color: var(--bs-dark);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
 }
 .page-title {
   margin: 0;

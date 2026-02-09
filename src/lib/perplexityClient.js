@@ -148,7 +148,8 @@ export const parseSalaryBenchmark = (text, options = {}) => {
       return {
         min: normalized?.min,
         max: normalized?.max,
-        link: item?.link_fonte ?? item?.link ?? item?.url
+        link: item?.link_fonte ?? item?.link ?? item?.url,
+        title: item?.title ?? item?.azienda ?? ''
       }
     })
     .filter((item) => Number.isFinite(item.min) && Number.isFinite(item.max))
@@ -193,12 +194,13 @@ export const parseSalaryBenchmark = (text, options = {}) => {
     sourceMap.set(item.link, {
       url: item.link,
       min: item.min,
-      max: item.max
+      max: item.max,
+      title: item.title || ''
     })
   })
   citations.filter(Boolean).forEach((link) => {
     if (!sourceMap.has(link)) {
-      sourceMap.set(link, { url: link, min: null, max: null })
+      sourceMap.set(link, { url: link, min: null, max: null, title: '' })
     }
   })
   const sources = Array.from(sourceMap.values())

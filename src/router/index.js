@@ -8,6 +8,7 @@ import ProfileDetail from '../pages/ProfileDetail.vue'
 import CompetitorAnalysis from '../pages/CompetitorAnalysis.vue'
 import RoleCreator from '../pages/RoleCreator.vue'
 import TopPerformers from '../pages/TopPerformers.vue'
+import CompetitorManager from '../pages/CompetitorManager.vue'
 
 const routes = [
   { path: '/', redirect: '/ai-suggestions' },
@@ -17,6 +18,7 @@ const routes = [
   { path: '/budget', name: 'budget', component: Budget },
   { path: '/top-performers', name: 'top-performers', component: TopPerformers },
   { path: '/competitor', name: 'competitor', component: CompetitorAnalysis },
+  { path: '/competition/add', name: 'competitor-add', component: CompetitorManager },
   { path: '/new-role', name: 'new-role', component: RoleCreator },
   { path: '/audit', name: 'audit', component: Audit }
 ]

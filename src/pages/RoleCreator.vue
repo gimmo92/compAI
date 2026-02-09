@@ -70,7 +70,7 @@
             target="_blank"
             rel="noreferrer"
           >
-            {{ source.url }}
+            {{ source.title || source.url }}
             <span v-if="source.min && source.max" class="source-range">
               · RAL {{ formatCurrency(source.min) }} - {{ formatCurrency(source.max) }}
             </span>
@@ -110,7 +110,9 @@ const searchedSources = ref([])
 const normalizedSources = computed(() => {
   if (!result.value?.sources) return []
   return result.value.sources.map((source) =>
-    typeof source === 'string' ? { url: source, min: null, max: null } : source
+    typeof source === 'string'
+      ? { url: source, min: null, max: null, title: '' }
+      : { ...source, title: source?.title || '' }
   )
 })
 

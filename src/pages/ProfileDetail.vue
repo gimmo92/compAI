@@ -49,7 +49,9 @@
           <div v-for="source in sourceDetails" :key="source.url" class="source-row">
             <div class="source-icon">{{ source.icon }}</div>
             <div class="source-body">
-              <a :href="source.url" target="_blank" rel="noreferrer">{{ source.label }}</a>
+              <a :href="source.url" target="_blank" rel="noreferrer">
+                {{ source.title || source.label }}
+              </a>
               <div class="source-range">
                 Range: {{ formatCurrency(source.min) }} - {{ formatCurrency(source.max) }}
               </div>
@@ -191,7 +193,9 @@ const chartOptions = computed(() => ({
 const activeSources = computed(() => {
   const sources = activeBenchmark.value?.sources || []
   return sources.map((source) =>
-    typeof source === 'string' ? { url: source, min: null, max: null } : source
+    typeof source === 'string'
+      ? { url: source, min: null, max: null, title: '' }
+      : { ...source, title: source?.title || '' }
   )
 })
 
@@ -260,7 +264,16 @@ const sourceDetails = computed(() => {
       const matchedKey = Object.keys(labelMap).find((key) => host.includes(key))
       const label = matchedKey ? labelMap[matchedKey] : host || 'Fonte'
       const icon = iconMap[label] || 'FX'
-      return [{ url: normalized, label, icon, min: item.min, max: item.max }]
+      return [
+        {
+          url: normalized,
+          label,
+          icon,
+          min: item.min,
+          max: item.max,
+          title: item.title || ''
+        }
+      ]
     }
 
     const query = normalized
@@ -269,7 +282,8 @@ const sourceDetails = computed(() => {
       label,
       icon: iconMap[label] || 'FX',
       min: item.min,
-      max: item.max
+      max: item.max,
+      title: item.title || ''
     }))
   })
 
