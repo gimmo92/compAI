@@ -138,8 +138,14 @@ export default async function handler(req, res) {
 
   const llmExtractRanges = async (entries) => {
     const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey || !entries?.length) return []
+    if (!apiKey || !entries?.length) {
+      if (!apiKey) {
+        console.log('[gemini] GEMINI_API_KEY missing, skip LLM fallback')
+      }
+      return []
+    }
     const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+    console.log('[gemini] calling model:', model, 'entries:', entries.length)
     const prompt =
       'Extract salary ranges from the snippets below. Return only explicit ranges found in the text. Never infer or estimate.' +
       ' Output a JSON array of objects: { "url": "...", "min": number, "max": number }. If none, return [] only.'
@@ -170,7 +176,10 @@ export default async function handler(req, res) {
       }
     )
 
-    if (!response.ok) return []
+    if (!response.ok) {
+      console.log('[gemini] response not ok:', response.status)
+      return []
+    }
     const data = await response.json().catch(() => null)
     const content = data?.candidates?.[0]?.content?.parts?.map((part) => part?.text || '').join('\n')
     const jsonText = extractJson(content)
