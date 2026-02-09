@@ -245,74 +245,47 @@ export default async function handler(req, res) {
       return
     }
 
-    const collectItems = (results) =>
-      results
-        .map((item) => {
-          const text = `${item?.title || ''} ${item?.snippet || ''}`
-          const range = parseSalaryRange(text)
-          const normalized = range ? normalizeRange(range.min, range.max) : null
-          if (!normalized) return null
-          return {
-            ral_min: normalized.min,
-            ral_max: normalized.max,
-            azienda: item?.title || '',
-            link_fonte: item?.link || '',
-            data_pubblicazione: '',
-            location_scope: location
-          }
-        })
-        .filter((item) => item && isRelevantCitation(item.link_fonte))
-
     let serperResults = await fetchSerperResults(buildSalaryQueries(), 10).catch(() => [])
-    let items = collectItems(serperResults)
-
-    if (!items.length) {
+    if (!serperResults.length) {
       serperResults = await fetchSerperResults(buildFallbackQueries(), 10).catch(() => [])
-      items = collectItems(serperResults)
     }
 
-    if (!items.length) {
-      const llmEntries = Array.from(
-        new Map(
-          serperResults
-            .filter((item) => isRelevantCitation(item?.link))
-            .map((item) => [
-              item.link,
-              {
-                url: item.link,
-                text: `${item?.title || ''} ${item?.snippet || ''}`.trim()
-              }
-            ])
-        ).values()
-      ).slice(0, 12)
+    const llmEntries = Array.from(
+      new Map(
+        serperResults
+          .filter((item) => isRelevantCitation(item?.link))
+          .map((item) => [
+            item.link,
+            {
+              url: item.link,
+              text: `${item?.title || ''} ${item?.snippet || ''}`.trim()
+            }
+          ])
+      ).values()
+    ).slice(0, 12)
 
-      const llmResults = await llmExtractRanges(llmEntries).catch(() => [])
-      const llmItems = llmResults
-        .map((item) => {
-          const min = toNumber(item?.min)
-          const max = toNumber(item?.max)
-          const normalized = normalizeRange(min, max)
-          if (!normalized) return null
-          const source = llmEntries.find((entry) => entry.url === item?.url)
-          if (!source) return null
-          if (!hasNumberMatch(source.text, normalized.min) && !hasNumberMatch(source.text, normalized.max)) {
-            return null
-          }
-          return {
-            ral_min: normalized.min,
-            ral_max: normalized.max,
-            azienda: '',
-            link_fonte: item?.url || '',
-            data_pubblicazione: '',
-            location_scope: location
-          }
-        })
-        .filter((item) => item && isRelevantCitation(item.link_fonte))
-
-      if (llmItems.length) {
-        items = llmItems
-      }
-    }
+    const llmResults = await llmExtractRanges(llmEntries).catch(() => [])
+    const items = llmResults
+      .map((item) => {
+        const min = toNumber(item?.min)
+        const max = toNumber(item?.max)
+        const normalized = normalizeRange(min, max)
+        if (!normalized) return null
+        const source = llmEntries.find((entry) => entry.url === item?.url)
+        if (!source) return null
+        if (!hasNumberMatch(source.text, normalized.min) && !hasNumberMatch(source.text, normalized.max)) {
+          return null
+        }
+        return {
+          ral_min: normalized.min,
+          ral_max: normalized.max,
+          azienda: '',
+          link_fonte: item?.url || '',
+          data_pubblicazione: '',
+          location_scope: location
+        }
+      })
+      .filter((item) => item && isRelevantCitation(item.link_fonte))
 
     if (!items.length) {
       res.status(200).json({ text: '{"error":"no_verified_salary"}', citations: [] })
