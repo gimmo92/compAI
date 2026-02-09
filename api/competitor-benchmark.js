@@ -133,7 +133,24 @@ export default async function handler(req, res) {
     const url = String(value).toLowerCase()
     const isLinkedInJob = url.includes('linkedin.com/jobs/view')
     const isIndeedJob = url.includes('indeed.com/viewjob') || url.includes('indeed.com/job')
-    return isLinkedInJob || isIndeedJob
+    const isGlassdoor = url.includes('glassdoor.')
+    const isWellfound = url.includes('wellfound.com') || url.includes('angel.co')
+    const isDatapizza = url.includes('datapizza.')
+    const isTechCompenso = url.includes('techcompenso')
+    const isStipendioGiusto = url.includes('stipendiogiusto')
+    const isCrebs = url.includes('crebs')
+    const isReteInformaticaLavoro = url.includes('reteinformaticalavoro')
+    return (
+      isLinkedInJob ||
+      isIndeedJob ||
+      isGlassdoor ||
+      isWellfound ||
+      isDatapizza ||
+      isTechCompenso ||
+      isStipendioGiusto ||
+      isCrebs ||
+      isReteInformaticaLavoro
+    )
   }
 
   const fetchSerperResults = async (queries, num = 10) => {
@@ -231,6 +248,17 @@ export default async function handler(req, res) {
       '("RAL" OR "retribuzione" OR "stipendio" OR "annua" OR "lordo" OR "€" OR "EUR")'
     const limitedNames = names.slice(0, 6)
 
+    const extraDomains = [
+      'site:datapizza.com',
+      'site:techcompenso.com',
+      'site:stipendiogiusto.it',
+      'site:crebs.it',
+      'site:reteinformaticalavoro.it',
+      'site:wellfound.com',
+      'site:glassdoor.it',
+      'site:glassdoor.com'
+    ]
+
     const queries = limitedNames.flatMap((company) => [
       {
         company,
@@ -239,7 +267,11 @@ export default async function handler(req, res) {
       {
         company,
         query: `site:indeed.com/viewjob "${company}" "${locationTerm}" ${keywordGroup}`
-      }
+      },
+      ...extraDomains.map((domain) => ({
+        company,
+        query: `${domain} "${company}" "${locationTerm}" ${keywordGroup}`
+      }))
     ])
 
     const serperResults = await fetchSerperResults(queries, 10).catch(() => [])
@@ -252,7 +284,10 @@ export default async function handler(req, res) {
           .filter((item) => {
             const company = item?.__company || ''
             const title = item?.title || ''
-            return isCompanyMatch(title, company)
+            const snippet = item?.snippet || ''
+            const isIndeed = String(item?.link || '').toLowerCase().includes('indeed.com')
+            if (isCompanyMatch(title, company)) return true
+            return isIndeed && isCompanyMatch(snippet, company)
           })
           .map((item) => {
             const title = item?.title || ''
