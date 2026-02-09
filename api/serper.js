@@ -104,6 +104,24 @@ export default async function handler(req, res) {
     })
   }
 
+  const detectMonthlyMultiplier = (text) => {
+    if (!text) return 12
+    const raw = String(text).toLowerCase()
+    if (/14\s*mensil/.test(raw)) return 14
+    if (/13\s*mensil/.test(raw)) return 13
+    if (/mensil/.test(raw)) return 13
+    return 12
+  }
+
+  const isMonthlySalaryText = (text) => {
+    if (!text) return false
+    const raw = String(text).toLowerCase()
+    return (
+      /€\s*\d[\d.,]*\s*\/?\s*mo\b/.test(raw) ||
+      /\b(al mese|mensile|mensilità)\b/.test(raw)
+    )
+  }
+
   const parseSalaryRange = (value) => {
     if (!value) return null
     const text = String(value)
@@ -142,7 +160,9 @@ export default async function handler(req, res) {
     console.log('[gemini] calling model:', model, 'entries:', safeEntries.length)
     const prompt =
       'Extract salary ranges from the snippets below. Return only explicit ranges found in the text. Never infer or estimate.' +
-      ' Output a JSON array of objects: { "url": "...", "min": number, "max": number }. If none, return [] only.'
+      ' If the salary is monthly (e.g. €/mo, al mese, mensile), return period as "monthly" and keep min/max as the monthly numbers.' +
+      ' If annual, return period as "annual". Output a JSON array of objects: ' +
+      '{ "url": "...", "min": number, "max": number, "period": "annual" | "monthly" }. If none, return [] only.'
 
     const payload = {
       contents: [
@@ -281,15 +301,34 @@ export default async function handler(req, res) {
     const llmResults = await llmExtractRanges(llmEntries).catch(() => [])
     const items = llmResults
       .map((item) => {
-        const min = toNumber(item?.min)
-        const max = toNumber(item?.max)
-        const normalized = normalizeRange(min, max)
-        if (!normalized) return null
+        const minRaw = toNumber(item?.min)
+        const maxRaw = toNumber(item?.max)
         const source = llmEntries.find((entry) => entry.url === item?.url)
         if (!source) return null
-        if (!hasNumberMatch(source.text, normalized.min) && !hasNumberMatch(source.text, normalized.max)) {
-          return null
+        const period =
+          item?.period === 'monthly' || item?.period === 'annual'
+            ? item.period
+            : isMonthlySalaryText(source.text)
+            ? 'monthly'
+            : 'annual'
+
+        let min = minRaw
+        let max = maxRaw
+        if (period === 'monthly') {
+          const multiplier = detectMonthlyMultiplier(source.text)
+          min = Number.isFinite(minRaw) ? minRaw * multiplier : minRaw
+          max = Number.isFinite(maxRaw) ? maxRaw * multiplier : maxRaw
+          if (!hasNumberMatch(source.text, minRaw) && !hasNumberMatch(source.text, maxRaw)) {
+            return null
+          }
+        } else {
+          if (!hasNumberMatch(source.text, minRaw) && !hasNumberMatch(source.text, maxRaw)) {
+            return null
+          }
         }
+
+        const normalized = normalizeRange(min, max)
+        if (!normalized) return null
         return {
           ral_min: normalized.min,
           ral_max: normalized.max,
