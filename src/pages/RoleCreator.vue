@@ -224,15 +224,15 @@ const confirmRole = async () => {
   hiddenSources.value = new Set()
   searchedSources.value = []
   const name = roleName.value.trim()
-  if (!name || !city.value.trim()) {
-    error.value = 'Compila nome ruolo e città.'
+  if (!name) {
+    error.value = 'Compila il nome del ruolo.'
     return
   }
   loading.value = true
   try {
     const response = await requestPerplexitySalary({
       role: name,
-      location: city.value
+      location: city.value.trim()
     })
     let parsed
     try {
