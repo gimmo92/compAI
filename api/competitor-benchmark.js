@@ -76,12 +76,12 @@ export default async function handler(req, res) {
   }
 
   const detectMonthlyMultiplier = (text) => {
-    if (!text) return 12
+    if (!text) return 13
     const raw = String(text).toLowerCase()
     if (/14\s*mensil/.test(raw)) return 14
     if (/13\s*mensil/.test(raw)) return 13
     if (/mensil/.test(raw)) return 13
-    return 12
+    return 13
   }
 
   const isMonthlySalaryText = (text) => {
