@@ -100,8 +100,8 @@ import { parseSalaryBenchmark, requestPerplexitySalary } from '../lib/perplexity
 import VueApexCharts from 'vue3-apexcharts'
 
 const roleName = ref('')
-const city = ref('Milano')
-const seniority = ref(5)
+const city = ref('')
+const seniority = ref(null)
 const loading = ref(false)
 const error = ref('')
 const result = ref(null)
