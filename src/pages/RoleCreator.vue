@@ -62,22 +62,18 @@
         </div>
         <div v-if="normalizedSources.length" class="result-sources">
           <div class="sources-title">Fonti suggerite</div>
-          <a
-            v-for="source in normalizedSources"
-            :key="source.url"
-            class="source-link"
-            :href="source.url"
-            target="_blank"
-            rel="noreferrer"
-          >
-            {{ source.title || source.url }}
-            <span v-if="source.min && source.max" class="source-range">
-              · RAL {{ formatCurrency(source.min) }} - {{ formatCurrency(source.max) }}
-              <span v-if="source.converted" class="source-note">
-                (mensile → annuo x{{ source.multiplier || 13 }})
+          <div v-for="source in normalizedSources" :key="source.url" class="source-item">
+            <a class="source-link" :href="source.url" target="_blank" rel="noreferrer">
+              {{ source.title || source.url }}
+              <span v-if="source.min && source.max" class="source-range">
+                · RAL {{ formatCurrency(source.min) }} - {{ formatCurrency(source.max) }}
+                <span v-if="source.converted" class="source-note">
+                  (mensile → annuo x{{ source.multiplier || 13 }})
+                </span>
               </span>
-            </span>
-          </a>
+            </a>
+            <button class="remove-source" type="button" @click="removeSource(source.url)">x</button>
+          </div>
         </div>
       </div>
       <div class="result-grid">
@@ -109,33 +105,56 @@ const seniority = ref(5)
 const loading = ref(false)
 const error = ref('')
 const result = ref(null)
+const hiddenSources = ref(new Set())
 const searchedSources = ref([])
 const normalizedSources = computed(() => {
   if (!result.value?.sources) return []
-  return result.value.sources.map((source) =>
-    typeof source === 'string'
-      ? { url: source, min: null, max: null, title: '' }
-      : { ...source, title: source?.title || '' }
-  )
+  return result.value.sources
+    .map((source) =>
+      typeof source === 'string'
+        ? { url: source, min: null, max: null, title: '' }
+        : { ...source, title: source?.title || '' }
+    )
+    .filter((source) => source.url && !hiddenSources.value.has(source.url))
 })
 
 const chartKey = computed(() => {
-  if (!result.value) return 'empty'
-  return `${result.value.min}-${result.value.med}-${result.value.max}`
+  if (!chartBenchmark.value) return 'empty'
+  const hiddenCount = hiddenSources.value.size
+  return `${chartBenchmark.value.min}-${chartBenchmark.value.med}-${chartBenchmark.value.max}-${hiddenCount}`
 })
 
 const q1Value = computed(() => {
-  if (!result.value) return 0
-  return Math.round(result.value.min + (result.value.max - result.value.min) * 0.25)
+  if (!chartBenchmark.value) return 0
+  return Math.round(
+    chartBenchmark.value.min + (chartBenchmark.value.max - chartBenchmark.value.min) * 0.25
+  )
 })
 
 const q3Value = computed(() => {
-  if (!result.value) return 0
-  return Math.round(result.value.min + (result.value.max - result.value.min) * 0.75)
+  if (!chartBenchmark.value) return 0
+  return Math.round(
+    chartBenchmark.value.min + (chartBenchmark.value.max - chartBenchmark.value.min) * 0.75
+  )
+})
+
+const chartBenchmark = computed(() => {
+  if (!result.value) return null
+  const numericSources = normalizedSources.value.filter(
+    (source) => Number.isFinite(source.min) && Number.isFinite(source.max)
+  )
+  if (!numericSources.length) return result.value
+  const min = Math.min(...numericSources.map((source) => source.min))
+  const max = Math.max(...numericSources.map((source) => source.max))
+  const med = Math.round(
+    numericSources.reduce((sum, source) => sum + (source.min + source.max) / 2, 0) /
+      numericSources.length
+  )
+  return { ...result.value, min, med, max }
 })
 
 const chartSeries = computed(() => {
-  if (!result.value) return []
+  if (!chartBenchmark.value) return []
   const label = roleName.value || 'Ruolo'
   return [
     {
@@ -145,11 +164,11 @@ const chartSeries = computed(() => {
         {
           x: label,
           y: [
-            result.value.min,
+            chartBenchmark.value.min,
             q1Value.value,
-            result.value.med,
+            chartBenchmark.value.med,
             q3Value.value,
-            result.value.max
+            chartBenchmark.value.max
           ]
         }
       ]
@@ -202,6 +221,7 @@ const ALWAYS_FETCH = true
 const confirmRole = async () => {
   error.value = ''
   result.value = null
+  hiddenSources.value = new Set()
   searchedSources.value = []
   const name = roleName.value.trim()
   if (!name || !city.value.trim()) {
@@ -236,6 +256,11 @@ const confirmRole = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const removeSource = (url) => {
+  if (!url) return
+  hiddenSources.value = new Set(hiddenSources.value).add(url)
 }
 </script>
 
@@ -391,6 +416,12 @@ const confirmRole = async () => {
   font-size: 0.9rem;
   word-break: break-word;
 }
+.source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
 .source-range {
   color: var(--bs-gray-700);
   font-weight: 500;
@@ -402,5 +433,20 @@ const confirmRole = async () => {
 }
 .source-link:hover {
   text-decoration: underline;
+}
+.remove-source {
+  border: 1px solid var(--bs-gray-200);
+  background: var(--bs-white);
+  color: var(--bs-gray-700);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.remove-source:hover {
+  color: #D62755;
+  border-color: #D62755;
 }
 </style>
