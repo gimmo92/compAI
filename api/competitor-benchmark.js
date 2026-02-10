@@ -6,11 +6,10 @@ export default async function handler(req, res) {
     return
   }
 
-  const { competitors, location } = req.body || {}
+  const { competitors } = req.body || {}
   const names = Array.isArray(competitors)
     ? competitors.map((name) => String(name || '').trim()).filter(Boolean)
     : []
-  const locationTerm = String(location || 'Milano').trim()
 
   if (!names.length) {
     res.status(400).json({ error: 'Missing competitors' })
@@ -262,15 +261,15 @@ export default async function handler(req, res) {
     const queries = limitedNames.flatMap((company) => [
       {
         company,
-        query: `site:linkedin.com/jobs/view "${company}" "${locationTerm}" ${keywordGroup}`
+        query: `site:linkedin.com/jobs/view "${company}" ${keywordGroup}`
       },
       {
         company,
-        query: `site:indeed.com/viewjob "${company}" "${locationTerm}" ${keywordGroup}`
+        query: `site:indeed.com/viewjob "${company}" ${keywordGroup}`
       },
       ...extraDomains.map((domain) => ({
         company,
-        query: `${domain} "${company}" "${locationTerm}" ${keywordGroup}`
+        query: `${domain} "${company}" ${keywordGroup}`
       }))
     ])
 
@@ -342,7 +341,7 @@ export default async function handler(req, res) {
           ral_max: normalized.max,
           title: source?.title || '',
           link: item?.url || '',
-          location: locationTerm
+          location: ''
         }
       })
       .filter((item) => item && isRelevantCitation(item.link))
