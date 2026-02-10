@@ -54,6 +54,9 @@
               </a>
               <div class="source-range">
                 Range: {{ formatCurrency(source.min) }} - {{ formatCurrency(source.max) }}
+                <span v-if="source.converted" class="source-note">
+                  (mensile → annuo x{{ source.multiplier || 13 }})
+                </span>
               </div>
             </div>
             <div :class="['trend', source.trend]">
@@ -470,6 +473,11 @@ watch(
 .source-range {
   font-size: 0.8rem;
   color: var(--bs-gray-700);
+}
+.source-note {
+  margin-left: 6px;
+  color: var(--bs-gray-600);
+  font-size: 0.75rem;
 }
 .trend {
   display: inline-flex;

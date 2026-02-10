@@ -73,6 +73,9 @@
             {{ source.title || source.url }}
             <span v-if="source.min && source.max" class="source-range">
               · RAL {{ formatCurrency(source.min) }} - {{ formatCurrency(source.max) }}
+              <span v-if="source.converted" class="source-note">
+                (mensile → annuo x{{ source.multiplier || 13 }})
+              </span>
             </span>
           </a>
         </div>
@@ -391,6 +394,11 @@ const confirmRole = async () => {
 .source-range {
   color: var(--bs-gray-700);
   font-weight: 500;
+}
+.source-note {
+  margin-left: 6px;
+  color: var(--bs-gray-600);
+  font-size: 0.75rem;
 }
 .source-link:hover {
   text-decoration: underline;

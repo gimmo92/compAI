@@ -1,10 +1,10 @@
 {
   "functions": {
     "api/serper.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/competitor-benchmark.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     }
   },
   "rewrites": [

@@ -376,8 +376,9 @@ export default async function handler(req, res) {
 
         let min = minRaw
         let max = maxRaw
+        let multiplier = null
         if (period === 'monthly') {
-          const multiplier = detectMonthlyMultiplier(source.text)
+          multiplier = detectMonthlyMultiplier(source.text)
           min = Number.isFinite(minRaw) ? minRaw * multiplier : minRaw
           max = Number.isFinite(maxRaw) ? maxRaw * multiplier : maxRaw
           if (!hasNumberMatch(source.text, minRaw) && !hasNumberMatch(source.text, maxRaw)) {
@@ -398,7 +399,10 @@ export default async function handler(req, res) {
           title: source?.title || '',
           link_fonte: item?.url || '',
           data_pubblicazione: '',
-          location_scope: ''
+          location_scope: '',
+          period,
+          converted: period === 'monthly',
+          multiplier
         }
       })
       .filter((item) => item && isRelevantCitation(item.link_fonte))

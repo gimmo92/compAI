@@ -65,6 +65,9 @@
                 </a>
                 <div class="result-meta">
                   {{ formatCurrency(item.ral_min) }} - {{ formatCurrency(item.ral_max) }}
+                  <span v-if="item.converted" class="result-note">
+                    (mensile → annuo x{{ item.multiplier || 13 }})
+                  </span>
                 </div>
               </div>
               <span class="result-tag">RAL</span>
@@ -315,6 +318,11 @@ const loadBenchmarks = async () => {
 .result-meta {
   font-size: 0.85rem;
   color: var(--bs-gray-700);
+}
+.result-note {
+  margin-left: 6px;
+  color: var(--bs-gray-600);
+  font-size: 0.75rem;
 }
 .result-tag {
   font-size: 0.75rem;
