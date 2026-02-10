@@ -103,13 +103,6 @@ export const formatCurrency = (value) =>
 export const calcSuggestedRaise = (employee) =>
   Math.max(0, employee.benchmark.med - employee.ral_attuale)
 
-export const calcRetentionCost = (employee) => employee.ral_attuale * 1.5
-
-export const calcRetentionROI = (employee) => {
-  const raise = calcSuggestedRaise(employee)
-  return calcRetentionCost(employee) - raise
-}
-
 export const getPriorityScore = (employee) => {
   const gap = employee.benchmark.med - employee.ral_attuale
   const perfBoost = employee.performance_score > 4 ? 2 : employee.performance_score > 3 ? 1 : 0

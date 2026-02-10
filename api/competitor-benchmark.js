@@ -124,7 +124,19 @@ export default async function handler(req, res) {
       .map((token) => token.trim())
       .filter((token) => token.length >= 2)
     if (!tokens.length) return false
-    return tokens.every((token) => normalizedText.includes(token))
+    return tokens.every((token) => {
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      return new RegExp(`\\b${escaped}\\b`, 'i').test(normalizedText)
+    })
+  }
+
+  const inferMonthlyFromRange = (text, min, max) => {
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return false
+    const raw = String(text || '').toLowerCase()
+    if (/(annua|annuo|annui|anno|annual|year|ral|lordo)/.test(raw)) return false
+    if (/(\bora\b|hour|\/h|\bh\b|giorno|day|daily|settiman)/.test(raw)) return false
+    const upper = Math.max(min, max)
+    return upper >= 600 && upper <= 8000
   }
 
   const isRelevantCitation = (value) => {
@@ -284,9 +296,8 @@ export default async function handler(req, res) {
             const company = item?.__company || ''
             const title = item?.title || ''
             const snippet = item?.snippet || ''
-            const isIndeed = String(item?.link || '').toLowerCase().includes('indeed.com')
-            if (isCompanyMatch(title, company)) return true
-            return isIndeed && isCompanyMatch(snippet, company)
+            const combined = `${title} ${snippet}`.trim()
+            return isCompanyMatch(combined, company)
           })
           .map((item) => {
             const title = item?.title || ''
@@ -328,7 +339,8 @@ export default async function handler(req, res) {
         const period =
           item?.period === 'monthly' || item?.period === 'annual'
             ? item.period
-            : isMonthlySalaryText(source.text)
+            : isMonthlySalaryText(source.text) ||
+              inferMonthlyFromRange(source.text, minRaw, maxRaw)
             ? 'monthly'
             : 'annual'
 

@@ -59,8 +59,11 @@
                 </span>
               </div>
             </div>
-            <div :class="['trend', source.trend]">
-              <span class="trend-arrow">{{ source.trend === 'up' ? '^' : 'v' }}</span>
+            <div class="source-actions">
+              <div :class="['trend', source.trend]">
+                <span class="trend-arrow">{{ source.trend === 'up' ? '^' : 'v' }}</span>
+              </div>
+              <button class="remove-source" type="button" @click="removeSource(source.url)">x</button>
             </div>
           </div>
         </div>
@@ -83,6 +86,7 @@ const router = useRouter()
 const benchmarkLoading = ref(false)
 const benchmarkError = ref('')
 const benchmarkData = ref(null)
+const hiddenSources = ref(new Set())
 
 const employee = computed(() => {
   const id = route.params.id
@@ -95,20 +99,39 @@ const activeBenchmark = computed(() => {
   return { ...employee.value.benchmark, sources: [employee.value.source_link] }
 })
 
+const chartBenchmark = computed(() => {
+  if (!employee.value || !activeBenchmark.value) return null
+  const filtered = activeSources.value.filter((source) => {
+    const url = normalizeUrl(source.url)
+    return url && !hiddenSources.value.has(url)
+  })
+  const numericSources = filtered.filter(
+    (source) => Number.isFinite(source.min) && Number.isFinite(source.max)
+  )
+  if (!numericSources.length) return activeBenchmark.value
+  const min = Math.min(...numericSources.map((source) => source.min))
+  const max = Math.max(...numericSources.map((source) => source.max))
+  const med = Math.round(
+    numericSources.reduce((sum, source) => sum + (source.min + source.max) / 2, 0) /
+      numericSources.length
+  )
+  return { ...activeBenchmark.value, min, med, max }
+})
+
 const scaleMin = computed(() => {
-  if (!employee.value || !activeBenchmark.value) return 0
-  return Math.min(activeBenchmark.value.min, employee.value.ral_attuale)
+  if (!employee.value || !chartBenchmark.value) return 0
+  return Math.min(chartBenchmark.value.min, employee.value.ral_attuale)
 })
 const scaleMax = computed(() => {
-  if (!employee.value || !activeBenchmark.value) return 1
-  return Math.max(activeBenchmark.value.max, employee.value.ral_attuale)
+  if (!employee.value || !chartBenchmark.value) return 1
+  return Math.max(chartBenchmark.value.max, employee.value.ral_attuale)
 })
 const scaleMed = computed(() => Math.round((scaleMin.value + scaleMax.value) / 2))
 const q1Value = computed(() => Math.round(scaleMin.value + (scaleMax.value - scaleMin.value) * 0.25))
 const q3Value = computed(() => Math.round(scaleMin.value + (scaleMax.value - scaleMin.value) * 0.75))
 
 const chartSeries = computed(() => {
-  if (!employee.value || !activeBenchmark.value) return []
+  if (!employee.value || !chartBenchmark.value) return []
   return [
     {
       name: 'Benchmark',
@@ -117,11 +140,11 @@ const chartSeries = computed(() => {
         {
           x: employee.value.ruolo,
           y: [
-            activeBenchmark.value.min,
+            chartBenchmark.value.min,
             q1Value.value,
-            activeBenchmark.value.med,
+            chartBenchmark.value.med,
             q3Value.value,
-            activeBenchmark.value.max
+            chartBenchmark.value.max
           ]
         }
       ]
@@ -218,9 +241,10 @@ const getHost = (url) => {
 }
 
 const chartKey = computed(() => {
-  if (!employee.value || !activeBenchmark.value) return 'empty'
-  const { min, med, max } = activeBenchmark.value
-  return `${employee.value.id}-${min}-${med}-${max}`
+  if (!employee.value || !chartBenchmark.value) return 'empty'
+  const { min, med, max } = chartBenchmark.value
+  const hiddenCount = hiddenSources.value.size
+  return `${employee.value.id}-${min}-${med}-${max}-${hiddenCount}`
 })
 
 const ALWAYS_FETCH = true
@@ -244,10 +268,13 @@ const buildSearchUrl = (label, query) => {
 }
 
 const sourceDetails = computed(() => {
-  const sources = activeSources.value
+  const sources = activeSources.value.filter((source) => {
+    const url = normalizeUrl(source.url)
+    return url && !hiddenSources.value.has(url)
+  })
   if (!employee.value || !activeBenchmark.value) return []
 
-  const med = activeBenchmark.value.med
+  const med = chartBenchmark.value?.med ?? activeBenchmark.value.med
   const labelMap = {
     linkedin: 'LinkedIn',
     indeed: 'Indeed',
@@ -346,6 +373,21 @@ const updateBenchmark = async () => {
   }
 }
 
+const removeSource = (url) => {
+  const normalized = normalizeUrl(url)
+  if (!normalized) return
+  hiddenSources.value = new Set(hiddenSources.value).add(normalized)
+  if (!employee.value) return
+  try {
+    localStorage.setItem(
+      `${storagePrefix}${employee.value.id}:hidden`,
+      JSON.stringify(Array.from(hiddenSources.value))
+    )
+  } catch {
+    // ignore storage failures
+  }
+}
+
 const goBack = () => {
   router.push({ name: 'ai-suggestions' })
 }
@@ -356,6 +398,7 @@ watch(
     benchmarkError.value = ''
     if (!employee.value) {
       benchmarkData.value = null
+      hiddenSources.value = new Set()
       return
     }
     try {
@@ -363,6 +406,13 @@ watch(
       benchmarkData.value = stored ? JSON.parse(stored) : null
     } catch {
       benchmarkData.value = null
+    }
+    try {
+      const storedHidden = localStorage.getItem(`${storagePrefix}${employee.value.id}:hidden`)
+      const parsed = storedHidden ? JSON.parse(storedHidden) : []
+      hiddenSources.value = new Set(Array.isArray(parsed) ? parsed : [])
+    } catch {
+      hiddenSources.value = new Set()
     }
   },
   { immediate: true }
@@ -479,6 +529,11 @@ watch(
   color: var(--bs-gray-600);
   font-size: 0.75rem;
 }
+.source-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
 .trend {
   display: inline-flex;
   align-items: center;
@@ -495,6 +550,21 @@ watch(
 .trend-arrow {
   font-size: 1rem;
   line-height: 1;
+}
+.remove-source {
+  border: 1px solid var(--bs-gray-200);
+  background: var(--bs-white);
+  color: var(--bs-gray-700);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.remove-source:hover {
+  color: #D62755;
+  border-color: #D62755;
 }
 .empty-state {
   background: var(--bs-gray-100);

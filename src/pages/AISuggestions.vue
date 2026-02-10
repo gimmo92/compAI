@@ -15,7 +15,6 @@
             <th>Dipendente</th>
             <th>Punteggio performance</th>
             <th>Gap vs Mercato</th>
-            <th>ROI di Retention</th>
             <th>Rischio</th>
             <th></th>
           </tr>
@@ -31,10 +30,6 @@
             </td>
             <td>
               <span :class="row.gapClass">{{ formatCurrency(row.gap) }}</span>
-            </td>
-            <td>
-              <div class="roi">{{ formatCurrency(row.roi) }}</div>
-              <div class="meta">Costo sostituzione: {{ formatCurrency(row.retentionCost) }}</div>
             </td>
             <td>
               <span :class="['badge', row.riskClass]">{{ row.rischio_turnover }}</span>
@@ -57,8 +52,6 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   employees,
-  calcRetentionCost,
-  calcRetentionROI,
   formatCurrency,
   getPriorityScore
 } from '../data/employees'
@@ -68,16 +61,12 @@ const priorityRaises = computed(() => {
   return employees
     .map((employee) => {
       const gap = employee.benchmark.med - employee.ral_attuale
-      const retentionCost = calcRetentionCost(employee)
-      const roi = calcRetentionROI(employee)
       const score = getPriorityScore(employee)
       const gapClass = gap > 8000 ? 'danger' : gap > 4000 ? 'warning' : 'safe'
       const riskClass = employee.rischio_turnover === 'alto' ? 'danger' : 'safe'
       return {
         ...employee,
         gap,
-        retentionCost,
-        roi,
         score,
         gapClass,
         riskClass
@@ -180,10 +169,6 @@ const formatPerformance = (score) => {
 }
 .primary-btn:hover {
   filter: brightness(0.95);
-}
-.roi {
-  font-weight: 600;
-  color: var(--bs-dark);
 }
 </style>
 
