@@ -276,7 +276,7 @@ export default async function handler(req, res) {
     const serperResults = await fetchSerperResults(queries, 10).catch(() => [])
     console.log('[competitor] results:', serperResults.length)
 
-    const llmEntries = Array.from(
+    const allEntries = Array.from(
       new Map(
         serperResults
           .filter((item) => isRelevantCitation(item?.link))
@@ -301,7 +301,21 @@ export default async function handler(req, res) {
             ]
           })
       ).values()
-    ).slice(0, 40)
+    )
+
+    const perCompanyLimit = 12
+    const maxEntries = 60
+    const entriesByCompany = new Map()
+    allEntries.forEach((entry) => {
+      const key = normalizeText(entry.company) || entry.company || 'unknown'
+      const bucket = entriesByCompany.get(key) || []
+      if (bucket.length < perCompanyLimit) {
+        bucket.push(entry)
+        entriesByCompany.set(key, bucket)
+      }
+    })
+
+    const llmEntries = Array.from(entriesByCompany.values()).flat().slice(0, maxEntries)
 
     const llmResults = await llmExtractRanges(llmEntries).catch(() => [])
     console.log('[competitor] gemini ranges:', llmResults.length)
