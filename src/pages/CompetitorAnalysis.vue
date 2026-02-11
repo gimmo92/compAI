@@ -8,52 +8,52 @@
         </p>
       </div>
       <div class="header-actions">
-        <RouterLink class="secondary-btn" :to="{ name: 'competitor-add' }">
+        <RouterLink class="primary-btn" :to="{ name: 'competitor-add' }">
           Add competitor
-        </RouterLink>
-        <RouterLink class="secondary-btn" :to="{ name: 'competitor-add' }">
-          Vedi competitor
         </RouterLink>
         <span class="chip">Talent intelligence</span>
       </div>
     </div>
 
-    <div class="competitor-section">
-      <div class="competitor-header">
-        <h3>Ruoli a rischio sorpasso</h3>
-        <p class="meta">Suddivisi per azienda con esempi di annunci.</p>
-      </div>
-      <div class="company-grid">
-        <div v-for="company in competitorCompanies" :key="company.name" class="company-card">
-          <div class="company-header">
-            <div class="company-name">{{ company.name }}</div>
-            <div class="company-meta">{{ company.city }} · {{ company.industry }}</div>
-          </div>
-          <div class="competitor-list">
-            <div v-for="job in company.jobs" :key="job.id" class="competitor-row">
-              <div class="competitor-main">
-                <div class="competitor-title">{{ job.role }}</div>
-                <div class="competitor-meta">{{ job.city }}</div>
-              </div>
-              <div class="competitor-pay">
-                {{ formatCurrency(job.salary) }}
-                <span class="competitor-up">↑</span>
-              </div>
-              <a :href="job.link" target="_blank" rel="noreferrer" class="competitor-link">
-                Apri annuncio
-              </a>
-            </div>
-          </div>
+    <div class="overview-grid">
+      <div class="overview-card">
+        <div>
+          <h3 class="card-title">Add competitor</h3>
+          <p class="card-desc">
+            Inserisci nuovi competitor da monitorare nelle analisi.
+          </p>
         </div>
+        <RouterLink class="primary-btn" :to="{ name: 'competitor-add' }">
+          Add competitor
+        </RouterLink>
+      </div>
+
+      <div class="overview-card">
+        <div>
+          <h3 class="card-title">Competitor salvati</h3>
+          <p class="card-desc">
+            Elenco competitor attivi salvati nel sistema.
+          </p>
+        </div>
+        <div class="saved-list">
+          <span v-if="!customCompetitors.length" class="saved-empty">
+            Nessun competitor salvato
+          </span>
+          <span v-for="name in customCompetitors" :key="name" class="saved-chip">
+            {{ name }}
+          </span>
+        </div>
+        <RouterLink class="secondary-btn" :to="{ name: 'competitor-add' }">
+          Vedi competitor
+        </RouterLink>
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { employees, formatCurrency } from '../data/employees'
 
 const storageKey = 'competitors:list'
 const customCompetitors = ref([])
@@ -71,49 +71,6 @@ const loadCustomCompetitors = () => {
 
 onMounted(() => {
   customCompetitors.value = loadCustomCompetitors()
-})
-
-const competitorCompanies = computed(() => {
-  const roles = Array.from(new Set(employees.map((item) => item.ruolo)))
-  const companies = [
-    { name: 'Talentify', industry: 'HR Tech', city: 'Milano' },
-    { name: 'BlueWave', industry: 'Fintech', city: 'Milano' },
-    { name: 'HR Prime', industry: 'Consulenza', city: 'Roma' },
-    { name: 'NextPeople', industry: 'SaaS', city: 'Torino' }
-  ]
-
-  const custom = customCompetitors.value.map((name) => ({
-    name,
-    industry: 'Custom',
-    city: 'Milano'
-  }))
-
-  const allCompanies = [...custom, ...companies].reduce((acc, company) => {
-    if (!acc.some((item) => item.name.toLowerCase() === company.name.toLowerCase())) {
-      acc.push(company)
-    }
-    return acc
-  }, [])
-
-  return allCompanies.map((company, companyIndex) => {
-    const jobs = roles.slice(0, 3).map((role, roleIndex) => {
-      const base = Math.max(
-        ...employees
-          .filter((item) => item.ruolo === role)
-          .map((item) => item.benchmark?.max || item.ral_attuale || 0)
-      )
-      const salary = base + 2500 + companyIndex * 1200 + roleIndex * 900
-      const query = encodeURIComponent(`${role} ${company.city} salary`)
-      return {
-        id: `${company.name}-${roleIndex}`,
-        role,
-        city: company.city,
-        salary,
-        link: `https://www.linkedin.com/jobs/search/?keywords=${query}`
-      }
-    })
-    return { ...company, jobs }
-  })
 })
 </script>
 
@@ -143,6 +100,16 @@ const competitorCompanies = computed(() => {
   cursor: pointer;
   text-decoration: none;
 }
+.primary-btn {
+  border: 1px solid var(--bs-primary);
+  background: var(--bs-primary);
+  color: var(--bs-white);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
 .page-title {
   margin: 0;
   color: var(--bs-dark);
@@ -163,82 +130,46 @@ const competitorCompanies = computed(() => {
   font-weight: 600;
   font-size: 0.85rem;
 }
-.competitor-section {
+.overview-grid {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.overview-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
   background: var(--bs-white);
   border: 1px solid var(--bs-gray-200);
   border-radius: 12px;
   padding: 16px;
 }
-.company-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-.company-card {
-  border: 1px solid var(--bs-gray-200);
-  border-radius: 12px;
-  background: var(--bs-gray-100);
-  padding: 12px;
-  display: grid;
-  gap: 10px;
-}
-.company-header {
-  display: grid;
-  gap: 4px;
-}
-.company-name {
-  font-weight: 700;
-  color: var(--bs-dark);
-}
-.company-meta {
-  font-size: 0.85rem;
-  color: var(--bs-gray-700);
-}
-.competitor-header h3 {
+.card-title {
   margin: 0 0 4px;
-  color: var(--bs-dark);
   font-size: 1rem;
-}
-.competitor-list {
-  display: grid;
-  gap: 10px;
-}
-.competitor-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid var(--bs-gray-200);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: var(--bs-gray-100);
-}
-.competitor-title {
-  font-weight: 700;
   color: var(--bs-dark);
 }
-.competitor-meta {
-  font-size: 0.85rem;
+.card-desc {
+  margin: 0;
   color: var(--bs-gray-700);
-}
-.competitor-pay {
-  font-weight: 700;
-  color: #16a34a;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.competitor-up {
   font-size: 0.9rem;
 }
-.competitor-link {
-  color: var(--bs-primary);
-  text-decoration: none;
-  font-weight: 600;
+.saved-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.competitor-link:hover {
-  text-decoration: underline;
+.saved-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bs-gray-100);
+  border: 1px solid var(--bs-gray-200);
+  color: var(--bs-dark);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.saved-empty {
+  color: var(--bs-gray-600);
+  font-size: 0.85rem;
 }
 </style>

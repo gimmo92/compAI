@@ -21,7 +21,6 @@ const route = useRoute()
 const tabs = computed(() => {
   const items = [
     { to: '/ai-suggestions', label: 'Profili' },
-    { to: '/overview', label: 'Overview' },
     { to: '/competitor', label: 'Competition' },
     { to: '/budget', label: 'Budget' },
     { to: '/audit', label: 'Audit' }
