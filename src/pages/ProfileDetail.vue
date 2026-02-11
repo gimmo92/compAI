@@ -20,17 +20,40 @@
           <h2>Analisi retributiva</h2>
           <p class="meta">Confronto RAL vs benchmark di mercato.</p>
         </div>
-        <button
-          class="secondary-btn"
-          type="button"
-          :disabled="benchmarkLoading"
-          @click="updateBenchmark"
-        >
-          {{ benchmarkLoading ? 'Aggiornamento...' : 'Aggiorna benchmark retributivi' }}
-        </button>
+        <div class="profile-actions">
+          <button class="primary-btn" type="button" @click="openSalaryReview">
+            Salary review
+          </button>
+          <button
+            class="secondary-btn"
+            type="button"
+            :disabled="benchmarkLoading"
+            @click="updateBenchmark"
+          >
+            {{ benchmarkLoading ? 'Aggiornamento...' : 'Aggiorna benchmark retributivi' }}
+          </button>
+        </div>
       </div>
 
       <div v-if="benchmarkError" class="insight-error">{{ benchmarkError }}</div>
+
+      <div class="performance-card">
+        <div class="performance-title">Dati di performance</div>
+        <div class="performance-metrics">
+          <div class="metric">
+            <span class="label">Competenze</span>
+            <span class="value">{{ formatPerformance(employee.performance_competenze) }}</span>
+          </div>
+          <div class="metric">
+            <span class="label">Obiettivi</span>
+            <span class="value">{{ formatPerformance(employee.performance_obiettivi) }}</span>
+          </div>
+          <div class="metric">
+            <span class="label">Punteggio aggregato</span>
+            <span class="value">{{ formatPerformance(employee.performance_score) }}</span>
+          </div>
+        </div>
+      </div>
 
       <div class="profile-grid">
         <div class="boxplot-card">
@@ -69,6 +92,70 @@
         </div>
       </div>
 
+      <div v-if="showSalaryReview" class="sheet-backdrop" @click.self="closeSalaryReview">
+        <aside class="sheet">
+          <header class="sheet-header">
+            <div>
+              <div class="sheet-title">Salary review</div>
+              <div class="sheet-subtitle">
+                {{ employee.nome }} · {{ employee.ruolo }}
+              </div>
+            </div>
+            <button class="ghost-btn" type="button" @click="closeSalaryReview">Chiudi</button>
+          </header>
+
+          <section class="sheet-section">
+            <div class="current-values">
+              <div class="current-item">
+                <span class="label">RAL corrente</span>
+                <span class="value">{{ formatCurrency(employee.ral_attuale) }}</span>
+              </div>
+              <div class="current-item">
+                <span class="label">Importo variabile corrente</span>
+                <span class="value">{{ formatCurrency(employee.variabile_attuale) }}</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="sheet-section">
+            <div class="input-grid">
+              <label class="input-field">
+                <span class="label">Nuova RAL</span>
+                <div class="input-row">
+                  <input
+                    v-model.number="newRal"
+                    type="number"
+                    min="0"
+                    class="input"
+                    placeholder="Es. 52000"
+                  />
+                  <span class="delta">{{ formatDelta(newRal, employee.ral_attuale) }}</span>
+                </div>
+              </label>
+              <label class="input-field">
+                <span class="label">Nuovo importo variabile</span>
+                <div class="input-row">
+                  <input
+                    v-model.number="newVariable"
+                    type="number"
+                    min="0"
+                    class="input"
+                    placeholder="Es. 6000"
+                  />
+                  <span class="delta">
+                    {{ formatDelta(newVariable, employee.variabile_attuale) }}
+                  </span>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <div class="sheet-actions">
+            <button class="primary-btn" type="button">Richiedi approvazione</button>
+          </div>
+        </aside>
+      </div>
+
     </div>
   </section>
 </template>
@@ -87,6 +174,9 @@ const benchmarkLoading = ref(false)
 const benchmarkError = ref('')
 const benchmarkData = ref(null)
 const hiddenSources = ref(new Set())
+const showSalaryReview = ref(false)
+const newRal = ref(null)
+const newVariable = ref(null)
 
 const employee = computed(() => {
   const id = route.params.id
@@ -392,6 +482,32 @@ const goBack = () => {
   router.push({ name: 'ai-suggestions' })
 }
 
+const formatPerformance = (score) => {
+  const raw = (score / 5) * 100
+  const adjusted = Math.min(99.4, Math.max(0, raw - 1.3 + score * 0.7))
+  return `${adjusted.toFixed(1)}%`
+}
+
+const openSalaryReview = () => {
+  if (!employee.value) return
+  newRal.value = employee.value.ral_attuale
+  newVariable.value = employee.value.variabile_attuale
+  showSalaryReview.value = true
+}
+
+const closeSalaryReview = () => {
+  showSalaryReview.value = false
+}
+
+const formatDelta = (nextValue, currentValue) => {
+  const next = Number(nextValue)
+  const current = Number(currentValue)
+  if (!Number.isFinite(next) || !Number.isFinite(current) || current <= 0) return '—'
+  const delta = ((next - current) / current) * 100
+  const sign = delta > 0 ? '+' : ''
+  return `${sign}${delta.toFixed(1)}%`
+}
+
 watch(
   employee,
   () => {
@@ -443,6 +559,18 @@ watch(
   opacity: 0.6;
   cursor: not-allowed;
 }
+.primary-btn {
+  background: var(--bs-primary);
+  color: #fff;
+  border: 1px solid var(--bs-primary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.primary-btn:hover {
+  filter: brightness(0.95);
+}
 .profile-section {
   display: grid;
   gap: 12px;
@@ -457,6 +585,11 @@ watch(
   align-items: center;
   gap: 12px;
 }
+.profile-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
 .profile-header h2 {
   margin: 0 0 4px;
   font-size: 1rem;
@@ -467,6 +600,129 @@ watch(
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   align-items: start;
+}
+.performance-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--bs-gray-200);
+  background: var(--bs-gray-100);
+}
+.performance-title {
+  font-weight: 600;
+  color: var(--bs-dark);
+}
+.performance-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.metric {
+  display: grid;
+  gap: 4px;
+}
+.metric .label {
+  font-size: 0.8rem;
+  color: var(--bs-gray-700);
+}
+.metric .value {
+  font-weight: 700;
+  color: var(--bs-dark);
+}
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 40;
+}
+.sheet {
+  background: var(--bs-white);
+  width: min(460px, 92vw);
+  height: 100%;
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+}
+.sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.sheet-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--bs-dark);
+}
+.sheet-subtitle {
+  color: var(--bs-gray-700);
+  font-size: 0.9rem;
+}
+.ghost-btn {
+  border: 1px solid var(--bs-gray-200);
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.sheet-section {
+  display: grid;
+  gap: 10px;
+}
+.current-values {
+  display: grid;
+  gap: 8px;
+}
+.current-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.current-item .label {
+  color: var(--bs-gray-700);
+  font-size: 0.85rem;
+}
+.current-item .value {
+  font-weight: 700;
+  color: var(--bs-dark);
+}
+.input-grid {
+  display: grid;
+  gap: 12px;
+}
+.input-field {
+  display: grid;
+  gap: 6px;
+}
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.input {
+  border: 1px solid var(--bs-gray-200);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.sheet-actions .primary-btn {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+.delta {
+  font-weight: 700;
+  color: var(--bs-dark);
+  min-width: 70px;
+  text-align: right;
 }
 .profile-grid > * {
   min-width: 0;

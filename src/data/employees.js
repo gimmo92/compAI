@@ -4,8 +4,10 @@ const baseEmployees = [
     nome: 'Giulia Rinaldi',
     ruolo: 'HR Business Partner',
     dipartimento: 'People',
-    performance_score: 5,
+    performance_competenze: 4,
+    performance_obiettivi: 5,
     ral_attuale: 42000,
+    variabile_attuale: 5000,
     benchmark: { min: 45000, med: 52000, max: 60000 },
     city: 'Milano',
     source_link: 'https://www.linkedin.com/jobs/search/?keywords=HR%20Business%20Partner%20Milano'
@@ -15,8 +17,10 @@ const baseEmployees = [
     nome: 'Marco Ferri',
     ruolo: 'Data Analyst',
     dipartimento: 'People Analytics',
-    performance_score: 4,
+    performance_competenze: 3,
+    performance_obiettivi: 5,
     ral_attuale: 38000,
+    variabile_attuale: 3500,
     benchmark: { min: 40000, med: 47000, max: 55000 },
     city: 'Torino',
     source_link: 'https://www.indeed.com/jobs?q=Data%20Analyst&l=Torino'
@@ -26,8 +30,10 @@ const baseEmployees = [
     nome: 'Sara Conti',
     ruolo: 'Compensation & Benefits Specialist',
     dipartimento: 'Rewards',
-    performance_score: 5,
+    performance_competenze: 4,
+    performance_obiettivi: 5,
     ral_attuale: 46000,
+    variabile_attuale: 6000,
     benchmark: { min: 50000, med: 58000, max: 67000 },
     city: 'Roma',
     source_link: 'https://www.linkedin.com/jobs/search/?keywords=Compensation%20Benefits%20Specialist%20Roma'
@@ -37,8 +43,10 @@ const baseEmployees = [
     nome: 'Luca Greco',
     ruolo: 'Software Engineer',
     dipartimento: 'Engineering',
-    performance_score: 3,
+    performance_competenze: 3,
+    performance_obiettivi: 2,
     ral_attuale: 52000,
+    variabile_attuale: 4500,
     benchmark: { min: 48000, med: 56000, max: 68000 },
     city: 'Bologna',
     source_link: 'https://www.indeed.com/jobs?q=Software%20Engineer&l=Bologna'
@@ -48,8 +56,10 @@ const baseEmployees = [
     nome: 'Alessia Villa',
     ruolo: 'Product Manager',
     dipartimento: 'Product',
-    performance_score: 5,
+    performance_competenze: 5,
+    performance_obiettivi: 4,
     ral_attuale: 60000,
+    variabile_attuale: 12000,
     benchmark: { min: 62000, med: 70000, max: 82000 },
     city: 'Milano',
     source_link: 'https://www.linkedin.com/jobs/search/?keywords=Product%20Manager%20Milano'
@@ -59,8 +69,10 @@ const baseEmployees = [
     nome: 'Davide Ricci',
     ruolo: 'UX Designer',
     dipartimento: 'Design',
-    performance_score: 4,
+    performance_competenze: 3,
+    performance_obiettivi: 4,
     ral_attuale: 41000,
+    variabile_attuale: 3500,
     benchmark: { min: 42000, med: 48000, max: 56000 },
     city: 'Firenze',
     source_link: 'https://www.indeed.com/jobs?q=UX%20Designer&l=Firenze'
@@ -70,8 +82,10 @@ const baseEmployees = [
     nome: 'Elisa Bianchi',
     ruolo: 'Payroll Specialist',
     dipartimento: 'Operations',
-    performance_score: 2,
+    performance_competenze: 2,
+    performance_obiettivi: 3,
     ral_attuale: 32000,
+    variabile_attuale: 2500,
     benchmark: { min: 30000, med: 36000, max: 43000 },
     city: 'Padova',
     source_link: 'https://www.linkedin.com/jobs/search/?keywords=Payroll%20Specialist%20Padova'
@@ -81,8 +95,10 @@ const baseEmployees = [
     nome: 'Paolo Neri',
     ruolo: 'Talent Acquisition Lead',
     dipartimento: 'People',
-    performance_score: 4,
+    performance_competenze: 5,
+    performance_obiettivi: 3,
     ral_attuale: 47000,
+    variabile_attuale: 6500,
     benchmark: { min: 52000, med: 60000, max: 70000 },
     city: 'Milano',
     source_link: 'https://www.linkedin.com/jobs/search/?keywords=Talent%20Acquisition%20Lead%20Milano'
@@ -90,11 +106,14 @@ const baseEmployees = [
 ]
 
 export const employees = baseEmployees.map((employee) => {
+  const performance_score = Number(
+    ((employee.performance_competenze + employee.performance_obiettivi) / 2).toFixed(1)
+  )
   const rischio_turnover =
-    employee.ral_attuale < employee.benchmark.med && employee.performance_score > 3
+    employee.ral_attuale < employee.benchmark.med && performance_score > 3
       ? 'alto'
       : 'basso'
-  return { ...employee, rischio_turnover }
+  return { ...employee, performance_score, rischio_turnover }
 })
 
 export const formatCurrency = (value) =>
